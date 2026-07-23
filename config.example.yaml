@@ -1,0 +1,38 @@
+# airmx 配置示例
+
+# 本机域名，用于 SMTP 会话应答和 Authentication-Results 头
+domain: mail.example.com
+
+# SMTP 监听地址（接收外部邮件用 25 端口，需要 root 或 setcap）
+smtp_listen: ":25"
+
+# Web 界面监听地址
+web_listen: ":8080"
+
+# 邮件存储目录（maildir 结构：<data_dir>/<收件人>/<inbox|spam>/{tmp,new,cur}）
+data_dir: "./data"
+
+# 收件地址白名单，不在列表中的 RCPT TO 会在 SMTP 阶段直接被 550 拒收
+# 支持 "*@example.com" 形式的整个域名通配
+recipients:
+  - "me@example.com"
+  - "*@lists.example.com"
+
+# Web 登录凭据（HTTP Basic Auth）
+web:
+  username: admin
+  # bcrypt 哈希，用 `airmx hashpw <密码>` 生成
+  password_bcrypt: "$2a$10$replace-me-with-output-of-hashpw"
+
+# 反垃圾策略：每项可选 reject（DATA 阶段 554 拒收）/ spam（进垃圾箱）/ inbox（进收件箱）
+policy:
+  # DMARC 校验失败（发件域发布了 DMARC 记录，且 SPF/DKIM 均未对齐通过）
+  dmarc_fail: reject
+  # SPF 硬失败（发件域用 -all 明确声明拒收）
+  spf_fail: reject
+  # SPF 软失败（发件域用 ~all 声明可疑，但不完全确定）
+  spf_softfail: spam
+  # DKIM 签名校验失败（存在签名但验证不通过）
+  dkim_fail: inbox
+  # 其余情况（全部通过或无记录）
+  default: inbox

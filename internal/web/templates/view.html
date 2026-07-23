@@ -1,0 +1,28 @@
+{{template "head" .}}
+<div class="meta">
+  <div><strong>主题:</strong> {{.Subject}}</div>
+  <div><strong>发件人:</strong> {{.From}}</div>
+  <div><strong>收件人:</strong> {{.To}}</div>
+  <div><strong>日期:</strong> {{.Date}}</div>
+</div>
+<p>
+  <form class="inline" method="post" action="/mail/{{.Folder}}/{{.ID}}/delete"
+        onsubmit="return confirm('确定删除这封邮件?')">
+    <button class="danger" type="submit">删除</button>
+  </form>
+</p>
+{{if .TextBody}}
+<pre class="body">{{.TextBody}}</pre>
+{{end}}
+{{if .HasHTML}}
+<iframe class="htmlbody" sandbox="" src="/mail/{{.Folder}}/{{.ID}}/html"></iframe>
+{{end}}
+{{if .Attach}}
+<h3>附件</h3>
+<ul>
+  {{range .Attach}}
+  <li><a href="/mail/{{$.Folder}}/{{$.ID}}/attach/{{.N}}">{{.Filename}}</a> ({{.Type}})</li>
+  {{end}}
+</ul>
+{{end}}
+{{template "foot" .}}
