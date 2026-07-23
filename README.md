@@ -1,74 +1,107 @@
 # airmx
 
-一个用 Go 编写的个人 MX 邮件接收服务器：通过 SMTP 接收外部邮件，做 SPF / DKIM / DMARC 校验，按策略把邮件投递到收件箱或垃圾箱（或在 SMTP 阶段直接拒收），并提供网页界面浏览和管理邮件。
+A personal MX server written in Go. It receives mail over SMTP, verifies
+SPF / DKIM / DMARC, delivers each message to the inbox or the spam folder
+according to your policy (or rejects it outright during the SMTP session),
+and serves a small web UI for reading and managing mail.
 
-## 功能
+## Features
 
-- SMTP 收信（go-smtp），仅接收不转发
-- 收件地址白名单：不在名单内的 `RCPT TO` 在 SMTP 阶段直接 `550` 拒收，支持 `*@domain` 通配
-- SPF + DKIM + DMARC 三项校验，结果写入 `Authentication-Results` 头
-- 可配置策略：每种校验失败时选择 reject（DATA 阶段 `554` 拒收）/ spam（垃圾箱）/ inbox（收件箱）
-- Maildir 格式存储：`data/<收件人>/<inbox|spam>/{tmp,new,cur}`
-- Web 界面（登录页 + 加密 Cookie 会话）：收件箱/垃圾箱列表、正文查看（HTML 正文 sandbox 渲染）、附件下载、删除
+- Inbound SMTP only (built on go-smtp) — receives, never relays
+- Recipient allowlist: unknown `RCPT TO` addresses are rejected at SMTP time
+  with `550`; `*@domain` wildcards supported
+- SPF (fail and softfail handled separately), DKIM and DMARC verification,
+  recorded in an `Authentication-Results` header on every stored message
+- Configurable policy per check: `reject` (`554` after DATA), `spam`, or `inbox`
+- Maildir storage: `<data_dir>/<recipient>/<inbox|spam>/{tmp,new,cur}`
+- Web UI with a login page and encrypted cookie sessions (automatic `Secure`
+  flag behind TLS-terminating proxies):
+  - inbox / spam listing with unread markers
+  - HTML and plain-text bodies with tabbed switching; HTML rendered in a
+    sandboxed, CSP-restricted iframe
+  - attachment download and message deletion
+- Single static binary; templates and CSS embedded with `go:embed`
 
-## 构建
+## Build
 
 ```sh
 go build -o airmx .
 ```
 
-## 配置
-
-复制 `config.example.yaml` 为 `config.yaml` 并修改：
+## Configure
 
 ```sh
 cp config.example.yaml config.yaml
-# 生成 Web 密码的 bcrypt 哈希
-./airmx hashpw '你的密码'
+# Generate a bcrypt hash for the web password:
+./airmx hashpw 'your-password'
 ```
 
-把输出的哈希填入 `web.password_bcrypt`。
+Paste the resulting hash into `web.password_bcrypt`. See
+`config.example.yaml` for all available options.
 
-## 运行
+## Run
 
 ```sh
 ./airmx -config config.yaml
 ```
 
-监听 25 端口需要 root 或 `setcap 'cap_net_bind_service=+ep' airmx`。
+Binding to port 25 requires root or
+`setcap 'cap_net_bind_service=+ep' airmx`. Only **TCP 25** needs to be
+reachable from the internet (SMTP runs over TCP); outbound DNS (UDP/TCP 53)
+must work for SPF/DKIM/DMARC lookups.
 
-## DNS 要求
+## DNS requirements
 
-- 域名的 MX 记录指向本服务器主机名
-- 主机名的 A/AAAA 记录指向本服务器 IP
-- 建议配置 PTR 反向解析，以及本机域名的 SPF 记录
+- An MX record for your domain pointing at this server's hostname
+- A/AAAA records for that hostname pointing at this server's IP
+- Recommended: a PTR record for the IP, and an SPF record for your own domain
 
-## 部署（systemd）
+## Deploy with systemd
 
-仓库自带 `airmx.service`（已配置 `network-online.target` 等待网络和基本加固）。安装：
+The repo ships `airmx.service`, which waits for `network-online.target` and
+applies basic hardening (dedicated user, `CAP_NET_BIND_SERVICE`,
+`ProtectSystem=strict`, …):
 
 ```sh
 sudo install -m755 airmx /usr/local/bin/
 sudo useradd -r -d /var/lib/airmx airmx
 sudo install -d -o airmx -g airmx /var/lib/airmx
 sudo install -d /etc/airmx
-sudo install -m600 config.yaml /etc/airmx/config.yaml   # data_dir 设为 /var/lib/airmx/data
+sudo install -m600 config.yaml /etc/airmx/config.yaml   # data_dir: /var/lib/airmx/data
 sudo install -m644 airmx.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now airmx
 ```
 
-## 本地测试
+## Reverse proxy (optional)
 
-不碰 25 端口也能验证完整流程。配置 `smtp_listen: ":2525"`，然后用 swaks 或标准 SMTP 客户端发信：
+To serve the web UI over HTTPS, point your proxy at `web_listen`
+(`127.0.0.1:8080` by default). With Caddy:
+
+```caddy
+mail.example.com {
+	reverse_proxy 127.0.0.1:8080
+}
+```
+
+Caddy sets `X-Forwarded-Proto` automatically, so session cookies get the
+`Secure` flag without extra configuration.
+
+## Local testing
+
+You can exercise the full pipeline without touching port 25. Set
+`smtp_listen: ":2525"` and send a test message with swaks or any SMTP
+client:
 
 ```sh
 swaks --server 127.0.0.1:2525 --from alice@example.com --to me@example.com \
-      --header "Subject: 测试" --body "hello"
+      --header "Subject: test" --body "hello"
 ```
 
-随后打开 `http://127.0.0.1:8080/` 登录后查看。注意本机测试时 SPF 多半为 none/error，属于正常现象——`spf_fail` / `spf_softfail` 只匹配明确的 `-all` / `~all` 结果。
+Then open `http://127.0.0.1:8080/` and log in. Note that SPF will usually be
+`none`/error when testing from localhost — that is expected, since
+`spf_fail` / `spf_softfail` only match explicit `-all` / `~all` results.
 
-## 范围
+## Scope
 
-不实现 SMTP 外发、IMAP/POP3；仅"收信 + Web 查看"。
+No outbound SMTP, no IMAP/POP3 — receive mail, read it in the browser.
