@@ -1,22 +1,27 @@
 {{template "head" .}}
 <div class="card">
 {{if .Messages}}
+<div class="table-wrap">
 <table class="msg-table">
   <thead>
-    <tr><th>主题</th><th>发件人</th><th>日期</th></tr>
+    <tr><th>主题</th><th>发件人</th><th style="text-align:right">日期</th></tr>
   </thead>
   <tbody>
   {{range .Messages}}
     <tr class="rowlink {{if .Unread}}unread{{end}}" data-href="/mail/{{$.Folder}}/{{.ID}}">
-      <td><span class="dot {{if not .Unread}}read{{end}}"></span><a href="/mail/{{$.Folder}}/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</a></td>
+      <td class="subject"><span class="dot {{if not .Unread}}read{{end}}"></span><a href="/mail/{{$.Folder}}/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</a></td>
       <td class="from">{{.From}}</td>
-      <td class="date">{{.Date.Format "2006-01-02 15:04"}}</td>
+      <td class="date">{{fdate .Date}}</td>
     </tr>
   {{end}}
   </tbody>
 </table>
+</div>
 {{else}}
-<div class="empty">没有邮件</div>
+<div class="empty">
+  <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+  没有邮件
+</div>
 {{end}}
 </div>
 <script>
