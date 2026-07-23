@@ -10,6 +10,7 @@ import (
 	"mime"
 	"net/http"
 	"net/mail"
+	"strconv"
 	"strings"
 	"time"
 
@@ -39,6 +40,8 @@ func New(store *maildir.Store, username, passwordBcrypt string) *Server {
 		passwordHash: []byte(passwordBcrypt),
 		tpl: template.Must(template.New("").Funcs(template.FuncMap{
 			"fdate": formatListDate,
+			"add":   func(a, b int) int { return a + b },
+			"sub":   func(a, b int) int { return a - b },
 		}).ParseFS(templatesFS, "templates/*.html")),
 	}
 	mux := http.NewServeMux()
@@ -76,16 +79,41 @@ func withCache(next http.Handler) http.Handler {
 
 type listData struct {
 	Messages []maildir.Message
+	Page     int
+	Pages    int
+	Total    int
 }
 
-// handleList renders the unified message listing.
+// listPageSize is the number of messages shown per page.
+const listPageSize = 50
+
+// handleList renders the unified message listing, paginated with ?p=N.
 func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	msgs, err := s.store.List()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "list.html", listData{Messages: msgs})
+	total := len(msgs)
+	pages := (total + listPageSize - 1) / listPageSize
+	if pages == 0 {
+		pages = 1
+	}
+	page, _ := strconv.Atoi(r.URL.Query().Get("p"))
+	if page < 1 {
+		page = 1
+	}
+	if page > pages {
+		page = pages
+	}
+	start := (page - 1) * listPageSize
+	end := min(start+listPageSize, total)
+	s.render(w, "list.html", listData{
+		Messages: msgs[start:end],
+		Page:     page,
+		Pages:    pages,
+		Total:    total,
+	})
 }
 
 type attachment struct {
