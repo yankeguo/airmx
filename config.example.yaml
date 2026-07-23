@@ -1,39 +1,47 @@
-# airmx 配置示例
+# airmx example configuration
 
-# 本机域名，用于 SMTP 会话应答和 Authentication-Results 头
+# Hostname of this server, used in SMTP greetings and the
+# Authentication-Results header.
 domain: mail.example.com
 
-# SMTP 监听地址（接收外部邮件用 25 端口，需要 root 或 setcap）
+# SMTP listen address. Port 25 for real inbound mail
+# (requires root or CAP_NET_BIND_SERVICE).
 smtp_listen: ":25"
 
-# Web 界面监听地址
+# Web UI listen address.
 web_listen: ":8080"
 
-# 邮件存储目录（maildir 结构：<data_dir>/<收件人>/<inbox|spam>/{tmp,new,cur}）
-# 与 airmx.service 配合时保持 /var/lib/airmx/data;本地开发可用 ./data
+# Mail storage root (maildir layout:
+# <data_dir>/<recipient>/<inbox|spam>/{tmp,new,cur}).
+# Keep this as /var/lib/airmx/data when using the bundled airmx.service;
+# use ./data for local development.
 data_dir: "/var/lib/airmx/data"
 
-# 收件地址白名单，不在列表中的 RCPT TO 会在 SMTP 阶段直接被 550 拒收
-# 支持 "*@example.com" 形式的整个域名通配
+# Recipient allowlist. RCPT TO addresses not listed here are rejected
+# at SMTP time with 550. "*@example.com" wildcards a whole domain.
 recipients:
   - "me@example.com"
   - "*@lists.example.com"
 
-# Web 登录凭据（HTTP Basic Auth）
+# Web UI credentials (login page with encrypted cookie session).
 web:
   username: admin
-  # bcrypt 哈希，用 `airmx hashpw <密码>` 生成
+  # bcrypt hash; generate with `airmx hashpw <password>`
   password_bcrypt: "$2a$10$replace-me-with-output-of-hashpw"
 
-# 反垃圾策略：每项可选 reject（DATA 阶段 554 拒收）/ spam（进垃圾箱）/ inbox（进收件箱）
+# Anti-spam policy. Each action is one of:
+#   reject - refuse the message with 554 after DATA
+#   spam   - deliver to the spam folder
+#   inbox  - deliver to the inbox
 policy:
-  # DMARC 校验失败（发件域发布了 DMARC 记录，且 SPF/DKIM 均未对齐通过）
+  # DMARC check failed: the From domain publishes a DMARC record and
+  # neither SPF nor DKIM passed with an aligned domain.
   dmarc_fail: reject
-  # SPF 硬失败（发件域用 -all 明确声明拒收）
+  # SPF hard fail: the sender domain explicitly denies the client IP (-all).
   spf_fail: reject
-  # SPF 软失败（发件域用 ~all 声明可疑，但不完全确定）
+  # SPF soft fail: the sender domain marks the client IP as suspicious (~all).
   spf_softfail: spam
-  # DKIM 签名校验失败（存在签名但验证不通过）
+  # DKIM signature present but invalid.
   dkim_fail: inbox
-  # 其余情况（全部通过或无记录）
+  # Everything else: all checks passed, or no records published.
   default: inbox
