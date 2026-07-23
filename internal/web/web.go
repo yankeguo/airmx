@@ -49,12 +49,11 @@ func New(store *maildir.Store, username, passwordBcrypt string) *Server {
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("GET /logout", s.handleLogout)
 	// Protected routes.
-	mux.Handle("GET /{$}", s.requireAuth(http.HandlerFunc(s.handleIndex)))
-	mux.Handle("GET /mail/{folder}", s.requireAuth(http.HandlerFunc(s.handleList)))
-	mux.Handle("GET /mail/{folder}/{id}", s.requireAuth(http.HandlerFunc(s.handleView)))
-	mux.Handle("GET /mail/{folder}/{id}/html", s.requireAuth(http.HandlerFunc(s.handleHTML)))
-	mux.Handle("GET /mail/{folder}/{id}/attach/{n}", s.requireAuth(http.HandlerFunc(s.handleAttach)))
-	mux.Handle("POST /mail/{folder}/{id}/delete", s.requireAuth(http.HandlerFunc(s.handleDelete)))
+	mux.Handle("GET /{$}", s.requireAuth(http.HandlerFunc(s.handleList)))
+	mux.Handle("GET /mail/{id}", s.requireAuth(http.HandlerFunc(s.handleView)))
+	mux.Handle("GET /mail/{id}/html", s.requireAuth(http.HandlerFunc(s.handleHTML)))
+	mux.Handle("GET /mail/{id}/attach/{n}", s.requireAuth(http.HandlerFunc(s.handleAttach)))
+	mux.Handle("POST /mail/{id}/delete", s.requireAuth(http.HandlerFunc(s.handleDelete)))
 	s.mux = mux
 	return s
 }
@@ -75,36 +74,18 @@ func withCache(next http.Handler) http.Handler {
 	})
 }
 
-// parseFolder validates the folder path parameter.
-func parseFolder(w http.ResponseWriter, r *http.Request) (maildir.Folder, bool) {
-	f := maildir.Folder(r.PathValue("folder"))
-	if !f.Valid() {
-		http.NotFound(w, r)
-		return "", false
-	}
-	return f, true
-}
-
-func (s *Server) handleIndex(w http.ResponseWriter, r *http.Request) {
-	http.Redirect(w, r, "/mail/inbox", http.StatusFound)
-}
-
 type listData struct {
-	Folder   string
 	Messages []maildir.Message
 }
 
+// handleList renders the merged inbox+spam listing.
 func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
-	folder, ok := parseFolder(w, r)
-	if !ok {
-		return
-	}
-	msgs, err := s.store.List(folder)
+	msgs, err := s.store.ListAll()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	s.render(w, "list.html", listData{Folder: string(folder), Messages: msgs})
+	s.render(w, "list.html", listData{Messages: msgs})
 }
 
 type attachment struct {
@@ -115,12 +96,12 @@ type attachment struct {
 }
 
 type viewData struct {
-	Folder   string
 	ID       string
 	Subject  string
 	From     string
 	To       string
 	Date     string
+	Spam     bool
 	TextBody string
 	HasHTML  bool
 	Attach   []attachment
@@ -196,12 +177,8 @@ func readTextBody(e *message.Entity, cs string) string {
 }
 
 func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
-	folder, ok := parseFolder(w, r)
-	if !ok {
-		return
-	}
 	id := r.PathValue("id")
-	raw, err := s.store.Open(folder, id)
+	raw, folder, err := s.store.Open(id)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -209,12 +186,12 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	h := headerOf(raw)
 	text, htmlBody, attach := walkMessage(raw)
 	s.render(w, "view.html", viewData{
-		Folder:   string(folder),
 		ID:       id,
 		Subject:  decodeHeader(h.Get("Subject")),
 		From:     decodeHeader(h.Get("From")),
 		To:       decodeHeader(h.Get("To")),
 		Date:     h.Get("Date"),
+		Spam:     folder == maildir.FolderSpam,
 		TextBody: text,
 		HasHTML:  htmlBody != "",
 		Attach:   attach,
@@ -239,11 +216,7 @@ func headerOf(raw []byte) mail.Header {
 // handleHTML serves the decoded HTML body in isolation; the parent page
 // embeds it in a sandboxed iframe.
 func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
-	folder, ok := parseFolder(w, r)
-	if !ok {
-		return
-	}
-	raw, err := s.store.Open(folder, r.PathValue("id"))
+	raw, _, err := s.store.Open(r.PathValue("id"))
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -262,11 +235,7 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
-	folder, ok := parseFolder(w, r)
-	if !ok {
-		return
-	}
-	raw, err := s.store.Open(folder, r.PathValue("id"))
+	raw, _, err := s.store.Open(r.PathValue("id"))
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -316,15 +285,11 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
-	folder, ok := parseFolder(w, r)
-	if !ok {
-		return
-	}
-	if err := s.store.Delete(folder, r.PathValue("id")); err != nil {
+	if err := s.store.Delete(r.PathValue("id")); err != nil {
 		http.NotFound(w, r)
 		return
 	}
-	http.Redirect(w, r, "/mail/"+string(folder), http.StatusSeeOther)
+	http.Redirect(w, r, "/", http.StatusSeeOther)
 }
 
 func (s *Server) render(w http.ResponseWriter, name string, data any) {

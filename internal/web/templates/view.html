@@ -1,7 +1,7 @@
 {{template "head" .}}
 <div class="card">
   <div class="meta">
-    <h2>{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</h2>
+    <h2>{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}{{if .Spam}} <span class="badge">垃圾</span>{{end}}</h2>
     <div class="sender">
       <div class="who">
         <div class="name">{{.From}}</div>
@@ -12,6 +12,7 @@
   </div>
   <hr class="divider">
   <div class="toolbar">
+    <a class="btn" href="/">返回列表</a>
     {{if and .HasHTML .TextBody}}
     <div class="bodytabs" role="tablist">
       <button type="button" class="active" data-target="html">HTML</button>
@@ -19,14 +20,14 @@
     </div>
     {{end}}
     <span class="spacer"></span>
-    <form method="post" action="/mail/{{.Folder}}/{{.ID}}/delete"
+    <form method="post" action="/mail/{{.ID}}/delete"
           onsubmit="return confirm('确定删除这封邮件?')">
       <button class="btn btn-danger" type="submit">删除</button>
     </form>
   </div>
   {{if .HasHTML}}
   <iframe id="mail-html" class="htmlbody" sandbox="allow-same-origin"
-          src="/mail/{{.Folder}}/{{.ID}}/html"></iframe>
+          src="/mail/{{.ID}}/html"></iframe>
   {{end}}
   {{if .TextBody}}
   <pre id="mail-text" class="body" {{if .HasHTML}}hidden{{end}}>{{.TextBody}}</pre>
@@ -35,7 +36,7 @@
   <h3 class="section">附件</h3>
   <ul class="attach-list">
     {{range .Attach}}
-    <li><a href="/mail/{{$.Folder}}/{{$.ID}}/attach/{{.N}}">{{.Filename}}<span class="type">{{.Type}}</span></a></li>
+    <li><a href="/mail/{{$.ID}}/attach/{{.N}}">{{.Filename}}<span class="type">{{.Type}}</span></a></li>
     {{end}}
   </ul>
   {{end}}

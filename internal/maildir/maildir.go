@@ -37,6 +37,7 @@ type Message struct {
 	From        string
 	Date        time.Time
 	Unread      bool
+	Spam        bool   // delivered to the spam folder by policy
 	SpamStatus  string // X-Spam-Status header value, if any
 	AuthResults string // Authentication-Results header value, if any
 }
@@ -123,7 +124,7 @@ func (s *Store) List(folder Folder) ([]Message, error) {
 				if e.IsDir() {
 					continue
 				}
-				m := Message{ID: e.Name(), Recipient: rec.Name(), Unread: sub.unread}
+				m := Message{ID: e.Name(), Recipient: rec.Name(), Unread: sub.unread, Spam: folder == FolderSpam}
 				if raw, err := os.ReadFile(filepath.Join(base, sub.dir, e.Name())); err == nil {
 					fillHeaders(&m, raw)
 				}
@@ -131,6 +132,22 @@ func (s *Store) List(folder Folder) ([]Message, error) {
 			}
 		}
 	}
+	sort.Slice(msgs, func(i, j int) bool { return msgs[i].Date.After(msgs[j].Date) })
+	return msgs, nil
+}
+
+// ListAll returns a merged listing of inbox and spam messages, newest
+// first. Messages classified as spam carry Spam=true.
+func (s *Store) ListAll() ([]Message, error) {
+	inbox, err := s.List(FolderInbox)
+	if err != nil {
+		return nil, err
+	}
+	spam, err := s.List(FolderSpam)
+	if err != nil {
+		return nil, err
+	}
+	msgs := append(inbox, spam...)
 	sort.Slice(msgs, func(i, j int) bool { return msgs[i].Date.After(msgs[j].Date) })
 	return msgs, nil
 }
@@ -167,49 +184,52 @@ func fillHeaders(m *Message, raw []byte) {
 	m.AuthResults = h.Get("Authentication-Results")
 }
 
-// locate finds the full path of message id in folder, scanning recipients.
-func (s *Store) locate(folder Folder, id string) (path string, unread bool, err error) {
-	if !folder.Valid() || !validID(id) {
-		return "", false, errors.New("invalid message reference")
+// locate finds the full path of message id, scanning all recipients and
+// both folders (inbox first, then spam).
+func (s *Store) locate(id string) (path string, folder Folder, unread bool, err error) {
+	if !validID(id) {
+		return "", "", false, errors.New("invalid message reference")
 	}
 	recipients, err := os.ReadDir(s.root)
 	if err != nil {
-		return "", false, err
+		return "", "", false, err
 	}
 	for _, rec := range recipients {
 		if !rec.IsDir() {
 			continue
 		}
-		for _, sub := range []string{"new", "cur"} {
-			p := filepath.Join(s.root, rec.Name(), string(folder), sub, id)
-			if _, err := os.Stat(p); err == nil {
-				return p, sub == "new", nil
+		for _, f := range []Folder{FolderInbox, FolderSpam} {
+			for _, sub := range []string{"new", "cur"} {
+				p := filepath.Join(s.root, rec.Name(), string(f), sub, id)
+				if _, err := os.Stat(p); err == nil {
+					return p, f, sub == "new", nil
+				}
 			}
 		}
 	}
-	return "", false, fs.ErrNotExist
+	return "", "", false, fs.ErrNotExist
 }
 
-// Open returns the raw bytes of a message. Unread messages are moved from
-// new/ to cur/ (marked as read).
-func (s *Store) Open(folder Folder, id string) ([]byte, error) {
-	p, unread, err := s.locate(folder, id)
+// Open returns the raw bytes of a message and the folder it lives in.
+// Unread messages are moved from new/ to cur/ (marked as read).
+func (s *Store) Open(id string) ([]byte, Folder, error) {
+	p, folder, unread, err := s.locate(id)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	raw, err := os.ReadFile(p)
 	if err != nil {
-		return nil, err
+		return nil, "", err
 	}
 	if unread {
 		_ = os.Rename(p, filepath.Join(filepath.Dir(filepath.Dir(p)), "cur", id))
 	}
-	return raw, nil
+	return raw, folder, nil
 }
 
 // Delete removes a message.
-func (s *Store) Delete(folder Folder, id string) error {
-	p, _, err := s.locate(folder, id)
+func (s *Store) Delete(id string) error {
+	p, _, _, err := s.locate(id)
 	if err != nil {
 		return err
 	}
@@ -221,8 +241,8 @@ func validID(id string) bool {
 }
 
 // Reader opens a message for streaming (used for attachments).
-func (s *Store) Reader(folder Folder, id string) (io.ReadCloser, error) {
-	p, _, err := s.locate(folder, id)
+func (s *Store) Reader(id string) (io.ReadCloser, error) {
+	p, _, _, err := s.locate(id)
 	if err != nil {
 		return nil, err
 	}
