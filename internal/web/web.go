@@ -78,9 +78,9 @@ type listData struct {
 	Messages []maildir.Message
 }
 
-// handleList renders the merged inbox+spam listing.
+// handleList renders the unified message listing.
 func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
-	msgs, err := s.store.ListAll()
+	msgs, err := s.store.List()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -178,7 +178,7 @@ func readTextBody(e *message.Entity, cs string) string {
 
 func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
-	raw, folder, err := s.store.Open(id)
+	raw, err := s.store.Open(id)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -191,7 +191,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 		From:     decodeHeader(h.Get("From")),
 		To:       decodeHeader(h.Get("To")),
 		Date:     h.Get("Date"),
-		Spam:     folder == maildir.FolderSpam,
+		Spam:     strings.Contains(h.Get("X-Spam-Status"), "action=spam"),
 		TextBody: text,
 		HasHTML:  htmlBody != "",
 		Attach:   attach,
@@ -216,7 +216,7 @@ func headerOf(raw []byte) mail.Header {
 // handleHTML serves the decoded HTML body in isolation; the parent page
 // embeds it in a sandboxed iframe.
 func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
-	raw, _, err := s.store.Open(r.PathValue("id"))
+	raw, err := s.store.Open(r.PathValue("id"))
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -235,7 +235,7 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
-	raw, _, err := s.store.Open(r.PathValue("id"))
+	raw, err := s.store.Open(r.PathValue("id"))
 	if err != nil {
 		http.NotFound(w, r)
 		return

@@ -13,7 +13,9 @@ and serves a small web UI for reading and managing mail.
 - SPF (fail and softfail handled separately), DKIM and DMARC verification,
   recorded in an `Authentication-Results` header on every stored message
 - Configurable policy per check: `reject` (`554` after DATA), `spam`, or `inbox`
-- Maildir storage: `<data_dir>/<recipient>/<inbox|spam>/{tmp,new,cur}`
+- Maildir storage: `<data_dir>/<recipient>/{tmp,new,cur}` — the spam
+  classification lives in the injected `X-Spam-Status` header, so no folder
+  split is needed
 - Web UI with a login page and encrypted cookie sessions (automatic `Secure`
   flag behind TLS-terminating proxies):
   - unified message listing (inbox and spam merged) with unread markers and

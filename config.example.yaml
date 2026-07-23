@@ -11,8 +11,7 @@ smtp_listen: ":25"
 # Web UI listen address.
 web_listen: ":8080"
 
-# Mail storage root (maildir layout:
-# <data_dir>/<recipient>/<inbox|spam>/{tmp,new,cur}).
+# Mail storage root (maildir layout: <data_dir>/<recipient>/{tmp,new,cur}).
 # Keep this as /var/lib/airmx/data when using the bundled airmx.service;
 # use ./data for local development.
 data_dir: "/var/lib/airmx/data"
