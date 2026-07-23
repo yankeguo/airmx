@@ -1,0 +1,40 @@
+{{define "head"}}
+<!doctype html>
+<html lang="zh">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>airmx</title>
+<style>
+  body { font-family: -apple-system, "Helvetica Neue", Arial, sans-serif; margin: 0; color: #222; }
+  nav { background: #2c3e50; color: #fff; padding: 10px 20px; }
+  nav a { color: #cfd8e3; margin-right: 16px; text-decoration: none; }
+  nav a.active { color: #fff; font-weight: 600; }
+  main { padding: 16px 20px; max-width: 1000px; margin: 0 auto; }
+  table { width: 100%; border-collapse: collapse; }
+  th, td { text-align: left; padding: 8px 6px; border-bottom: 1px solid #e3e3e3; }
+  tr.unread td { font-weight: 700; }
+  td.date { white-space: nowrap; color: #666; }
+  a { color: #2c6fbb; }
+  .meta { background: #f6f8fa; border: 1px solid #e3e3e3; padding: 10px 14px; border-radius: 6px; }
+  .meta div { margin: 3px 0; }
+  pre.body { white-space: pre-wrap; word-wrap: break-word; font-family: ui-monospace, Menlo, monospace; }
+  iframe.htmlbody { width: 100%; min-height: 400px; border: 1px solid #ddd; border-radius: 6px; }
+  form.inline { display: inline; }
+  button.danger { color: #b00; background: none; border: 1px solid #b00; border-radius: 4px; padding: 4px 10px; cursor: pointer; }
+  .empty { color: #888; padding: 40px 0; text-align: center; }
+</style>
+</head>
+<body>
+<nav>
+  <a href="/mail/inbox" {{if eq .Folder "inbox"}}class="active"{{end}}>收件箱</a>
+  <a href="/mail/spam" {{if eq .Folder "spam"}}class="active"{{end}}>垃圾箱</a>
+</nav>
+<main>
+{{end}}
+
+{{define "foot"}}
+</main>
+</body>
+</html>
+{{end}}
