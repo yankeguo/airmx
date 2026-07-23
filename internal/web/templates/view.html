@@ -1,28 +1,32 @@
 {{template "head" .}}
-<div class="meta">
-  <div><strong>主题:</strong> {{.Subject}}</div>
-  <div><strong>发件人:</strong> {{.From}}</div>
-  <div><strong>收件人:</strong> {{.To}}</div>
-  <div><strong>日期:</strong> {{.Date}}</div>
-</div>
-<p>
-  <form class="inline" method="post" action="/mail/{{.Folder}}/{{.ID}}/delete"
-        onsubmit="return confirm('确定删除这封邮件?')">
-    <button class="danger" type="submit">删除</button>
-  </form>
-</p>
-{{if .TextBody}}
-<pre class="body">{{.TextBody}}</pre>
-{{end}}
-{{if .HasHTML}}
-<iframe class="htmlbody" sandbox="" src="/mail/{{.Folder}}/{{.ID}}/html"></iframe>
-{{end}}
-{{if .Attach}}
-<h3>附件</h3>
-<ul>
-  {{range .Attach}}
-  <li><a href="/mail/{{$.Folder}}/{{$.ID}}/attach/{{.N}}">{{.Filename}}</a> ({{.Type}})</li>
+<div class="card">
+  <div class="meta">
+    <h2>{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</h2>
+    <dl>
+      <dt>发件人</dt><dd>{{.From}}</dd>
+      <dt>收件人</dt><dd>{{.To}}</dd>
+      <dt>日期</dt><dd>{{.Date}}</dd>
+    </dl>
+  </div>
+  <div class="toolbar">
+    <form method="post" action="/mail/{{.Folder}}/{{.ID}}/delete"
+          onsubmit="return confirm('确定删除这封邮件?')">
+      <button class="btn btn-danger" type="submit">删除</button>
+    </form>
+  </div>
+  {{if .TextBody}}
+  <pre class="body">{{.TextBody}}</pre>
   {{end}}
-</ul>
-{{end}}
+  {{if .HasHTML}}
+  <iframe class="htmlbody" sandbox="" src="/mail/{{.Folder}}/{{.ID}}/html"></iframe>
+  {{end}}
+  {{if .Attach}}
+  <h3 class="section">附件</h3>
+  <ul class="attach-list">
+    {{range .Attach}}
+    <li><a href="/mail/{{$.Folder}}/{{$.ID}}/attach/{{.N}}">{{.Filename}}<span class="type">{{.Type}}</span></a></li>
+    {{end}}
+  </ul>
+  {{end}}
+</div>
 {{template "foot" .}}

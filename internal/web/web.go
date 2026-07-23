@@ -20,6 +20,9 @@ import (
 //go:embed templates
 var templatesFS embed.FS
 
+//go:embed static
+var staticFS embed.FS
+
 type Server struct {
 	store        *maildir.Store
 	username     string
@@ -36,7 +39,9 @@ func New(store *maildir.Store, username, passwordBcrypt string) *Server {
 		tpl:          template.Must(template.New("").ParseFS(templatesFS, "templates/*.html")),
 	}
 	mux := http.NewServeMux()
-	// Public routes.
+	// Public routes. Static assets must be reachable from the login page,
+	// so they live outside the auth middleware.
+	mux.Handle("GET /static/", withCache(http.FileServerFS(staticFS)))
 	mux.HandleFunc("GET /login", s.handleLogin)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("GET /logout", s.handleLogout)
@@ -56,6 +61,15 @@ func New(store *maildir.Store, username, passwordBcrypt string) *Server {
 func (s *Server) ListenAndServe(addr string) error {
 	log.Printf("web: listening on %s", addr)
 	return http.ListenAndServe(addr, s.mux)
+}
+
+// withCache sets a short cache lifetime on embedded static assets; they are
+// content-stable between releases and re-fetched on restart anyway.
+func withCache(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // parseFolder validates the folder path parameter.
