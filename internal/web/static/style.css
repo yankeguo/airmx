@@ -49,9 +49,6 @@ a:hover { text-decoration: underline; }
   z-index: 10;
 }
 .nav .brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
   color: #fff;
   font-weight: 700;
   font-size: 16px;
@@ -59,7 +56,6 @@ a:hover { text-decoration: underline; }
   letter-spacing: .5px;
 }
 .nav .brand:hover { text-decoration: none; }
-.nav .brand svg { display: block; opacity: .9; }
 .nav a.tab {
   color: var(--nav-text);
   padding: 6px 14px;
@@ -139,7 +135,6 @@ a:hover { text-decoration: underline; }
   padding: 64px 0 60px;
   font-size: 14px;
 }
-.empty svg { display: block; margin: 0 auto 14px; opacity: .35; }
 
 /* ---------- message view ---------- */
 
@@ -152,18 +147,6 @@ a:hover { text-decoration: underline; }
 }
 
 .sender { display: flex; align-items: center; gap: 12px; }
-.avatar {
-  flex: none;
-  width: 42px; height: 42px;
-  border-radius: 50%;
-  color: #fff;
-  font-weight: 600;
-  font-size: 17px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  user-select: none;
-}
 .sender .who { min-width: 0; }
 .sender .who .name {
   font-weight: 600;
@@ -275,7 +258,6 @@ h3.section {
   box-shadow: var(--shadow);
   padding: 38px 38px 34px;
 }
-.login-card .logo { text-align: center; margin-bottom: 8px; }
 .login-card h1 {
   font-size: 20px;
   margin: 0 0 26px;
