@@ -94,14 +94,12 @@ func (s *session) Data(r io.Reader) error {
 		}
 	}
 
-	folder := maildir.FolderInbox
-	if action == mailauth.ActionSpam {
-		folder = maildir.FolderSpam
-	}
+	// The action is recorded in the injected X-Spam-Status header; the store
+	// reads it back for listings.
 	raw = injectHeaders(raw, s.opts.Domain, res, action)
 
 	for _, rcpt := range s.rcpts {
-		if _, err := s.opts.Store.Deliver(rcpt, folder, raw); err != nil {
+		if _, err := s.opts.Store.Deliver(rcpt, raw); err != nil {
 			log.Printf("smtp: deliver to %s failed: %v", rcpt, err)
 			return &smtp.SMTPError{
 				Code:         451,
