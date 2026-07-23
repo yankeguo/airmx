@@ -67,6 +67,17 @@ func (s *Store) mustList(t *testing.T, f Folder) []Message {
 	return msgs
 }
 
+func TestEncodedWordFrom(t *testing.T) {
+	raw := "From: =?utf-8?B?WS4tSy4gR3Vv?= <hi@guoyk.com>\r\n" +
+		"Subject: x\r\n" +
+		"\r\nhi\r\n"
+	var m Message
+	fillHeaders(&m, []byte(raw))
+	if m.From != "Y.-K. Guo <hi@guoyk.com>" {
+		t.Fatalf("From = %q", m.From)
+	}
+}
+
 func TestInvalidReferences(t *testing.T) {
 	s := New(t.TempDir())
 	if _, err := s.Deliver("a@b.com", Folder("bogus"), []byte("x")); err == nil {
