@@ -1,0 +1,27 @@
+[Unit]
+Description=airmx personal MX server
+# 收信需要 DNS 和外部连通性,等网络完全就绪再启动
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 专用用户 + 仅授予绑定 25 端口的能力,避免以 root 运行
+User=airmx
+Group=airmx
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+ExecStart=/usr/local/bin/airmx -config /etc/airmx/config.yaml
+WorkingDirectory=/var/lib/airmx
+Restart=on-failure
+RestartSec=5s
+
+# 基本加固
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+PrivateTmp=true
+# 邮件数据目录保持可写
+ReadWritePaths=/var/lib/airmx
+
+[Install]
+WantedBy=multi-user.target
