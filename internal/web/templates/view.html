@@ -14,8 +14,8 @@
   <div class="toolbar">
     {{if and .HasHTML .TextBody}}
     <div class="bodytabs" role="tablist">
-      <button type="button" class="active" data-target="html">HTML</button>
-      <button type="button" data-target="text">纯文本</button>
+      <button type="button" class="active" data-target="text">纯文本</button>
+      <button type="button" data-target="html">HTML</button>
     </div>
     {{end}}
     <span class="spacer"></span>
@@ -25,11 +25,14 @@
     </form>
   </div>
   {{if .HasHTML}}
-  <iframe id="mail-html" class="htmlbody" sandbox="allow-same-origin"
-          src="/mail/{{.ID}}/html"></iframe>
+  <!-- data-src + lazy src assignment: remote images (tracking pixels) are
+       only fetched after the user explicitly switches to the HTML tab. -->
+  <iframe id="mail-html" class="htmlbody"
+          sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+          data-src="/mail/{{.ID}}/html" {{if .TextBody}}hidden{{end}}></iframe>
   {{end}}
   {{if .TextBody}}
-  <pre id="mail-text" class="body" {{if .HasHTML}}hidden{{end}}>{{.TextBody}}</pre>
+  <pre id="mail-text" class="body">{{.TextBody}}</pre>
   {{end}}
   {{if .Attach}}
   <h3 class="section">附件</h3>
@@ -42,19 +45,27 @@
 </div>
 <script>
 (function () {
-  // HTML/plain-text tab toggle.
+  var frame = document.getElementById("mail-html");
+  // HTML/plain-text tab toggle. The iframe src is assigned lazily on first
+  // activation so remote images are never fetched for the text view.
   var tabs = document.querySelectorAll(".bodytabs button");
   tabs.forEach(function (btn) {
     btn.addEventListener("click", function () {
       tabs.forEach(function (b) { b.classList.toggle("active", b === btn); });
       var showHTML = btn.dataset.target === "html";
-      document.getElementById("mail-html").hidden = !showHTML;
+      if (showHTML && frame && !frame.src && frame.dataset.src) {
+        frame.src = frame.dataset.src;
+      }
+      if (frame) frame.hidden = !showHTML;
       document.getElementById("mail-text").hidden = showHTML;
     });
   });
+  // If there is no plain-text alternative, load the HTML right away.
+  if (frame && !document.getElementById("mail-text") && frame.dataset.src) {
+    frame.src = frame.dataset.src;
+  }
   // Grow the iframe to its content height; the sandboxed document is
   // same-origin (scripts are blocked by its CSP, not by the sandbox).
-  var frame = document.getElementById("mail-html");
   if (frame) {
     frame.addEventListener("load", function () {
       try {
