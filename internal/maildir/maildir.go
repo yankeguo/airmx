@@ -146,8 +146,12 @@ func fillHeaders(m *Message, raw []byte) {
 		m.Subject = s
 	}
 	if addr, err := mail.ParseAddress(h.Get("From")); err == nil {
-		if addr.Name != "" {
-			m.From = addr.Name + " <" + addr.Address + ">"
+		name := addr.Name
+		if d, err := new(mime.WordDecoder).DecodeHeader(name); err == nil {
+			name = d
+		}
+		if name != "" {
+			m.From = name + " <" + addr.Address + ">"
 		} else {
 			m.From = addr.Address
 		}

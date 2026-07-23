@@ -8,6 +8,9 @@
 *.so
 *.dylib
 
+# Local build output
+/airmx
+
 # Test binary, built with `go test -c`
 *.test
 
