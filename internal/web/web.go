@@ -255,11 +255,27 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// No scripts, no forms, no base-tag rewriting, no external requests
-	// other than images and inline styles.
+	// No scripts, no forms; only images and inline styles may load. base-uri
+	// is intentionally not restricted: we inject <base target="_blank"> so
+	// links open in a new tab instead of navigating the sandboxed frame
+	// (only the first <base> in a document takes effect, so ours wins).
 	w.Header().Set("Content-Security-Policy",
-		"default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'")
-	io.WriteString(w, htmlBody)
+		"default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; form-action 'none'")
+	io.WriteString(w, withBaseTargetBlank(htmlBody))
+}
+
+// withBaseTargetBlank injects <base target="_blank"> right after the first
+// <head ...> tag, or prepends it when no head tag exists.
+func withBaseTargetBlank(html string) string {
+	const base = `<base target="_blank">`
+	lower := strings.ToLower(html)
+	if i := strings.Index(lower, "<head"); i >= 0 {
+		if j := strings.Index(lower[i:], ">"); j >= 0 {
+			k := i + j + 1
+			return html[:k] + base + html[k:]
+		}
+	}
+	return base + html
 }
 
 func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
