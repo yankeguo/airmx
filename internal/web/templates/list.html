@@ -17,6 +17,13 @@
   </tbody>
 </table>
 </div>
+{{if gt .Pages 1}}
+<div class="pager">
+  {{if gt .Page 1}}<a href="/?p={{sub .Page 1}}">上一页</a>{{else}}<span class="disabled">上一页</span>{{end}}
+  <span class="info">第 {{.Page}} / {{.Pages}} 页 · 共 {{.Total}} 封</span>
+  {{if lt .Page .Pages}}<a href="/?p={{add .Page 1}}">下一页</a>{{else}}<span class="disabled">下一页</span>{{end}}
+</div>
+{{end}}
 {{else}}
 <div class="empty">没有邮件</div>
 {{end}}

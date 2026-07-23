@@ -150,6 +150,19 @@ a:hover { text-decoration: underline; }
   font-size: 14px;
 }
 
+.pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 14px 0 4px;
+  font-size: 13px;
+}
+.pager .info { color: var(--muted); }
+.pager .disabled { color: #c3c9d1; }
+.pager a { padding: 5px 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+.pager a:hover { border-color: var(--primary); text-decoration: none; }
+
 /* ---------- message view ---------- */
 
 .meta { margin-bottom: 18px; }
