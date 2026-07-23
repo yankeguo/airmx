@@ -8,6 +8,9 @@
 </head>
 <body class="login-wrap">
 <div class="login-card">
+  <div class="logo">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
+  </div>
   <h1>airmx 邮箱</h1>
   {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
   <form method="post" action="/login">
