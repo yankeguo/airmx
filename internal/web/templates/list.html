@@ -7,7 +7,7 @@
   </thead>
   <tbody>
   {{range .Messages}}
-    <tr {{if .Unread}}class="unread"{{end}}>
+    <tr class="rowlink {{if .Unread}}unread{{end}}" data-href="/mail/{{$.Folder}}/{{.ID}}">
       <td><span class="dot {{if not .Unread}}read{{end}}"></span><a href="/mail/{{$.Folder}}/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</a></td>
       <td class="from">{{.From}}</td>
       <td class="date">{{.Date.Format "2006-01-02 15:04"}}</td>
@@ -19,4 +19,19 @@
 <div class="empty">没有邮件</div>
 {{end}}
 </div>
+<script>
+// Make the whole row clickable (left click navigates; middle click opens a
+// new tab), while the real <a> keeps right-click / keyboard behavior.
+document.querySelectorAll("tr.rowlink").forEach(function (tr) {
+  tr.addEventListener("click", function (e) {
+    if (e.target.closest("a")) return;
+    window.location.href = tr.dataset.href;
+  });
+  tr.addEventListener("auxclick", function (e) {
+    if (e.button === 1 && !e.target.closest("a")) {
+      window.open(tr.dataset.href, "_blank");
+    }
+  });
+});
+</script>
 {{template "foot" .}}

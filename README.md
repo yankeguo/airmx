@@ -67,7 +67,9 @@ sudo install -m755 airmx /usr/local/bin/
 sudo useradd -r -d /var/lib/airmx airmx
 sudo install -d -o airmx -g airmx /var/lib/airmx
 sudo install -d /etc/airmx
-sudo install -m600 config.yaml /etc/airmx/config.yaml   # data_dir: /var/lib/airmx/data
+# Owned by the airmx user (the service runs unprivileged); 0600 keeps the
+# bcrypt hash and any secrets private.
+sudo install -m600 -o airmx -g airmx config.yaml /etc/airmx/config.yaml   # data_dir: /var/lib/airmx/data
 sudo install -m644 airmx.service /etc/systemd/system/
 sudo systemctl daemon-reload
 sudo systemctl enable --now airmx

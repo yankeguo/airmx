@@ -91,6 +91,7 @@ a:hover { text-decoration: underline; }
   vertical-align: middle;
 }
 .msg-table tbody tr:hover { background: #f8fafc; }
+.msg-table tbody tr.rowlink { cursor: pointer; }
 .msg-table td.date { white-space: nowrap; color: var(--muted); font-size: 13px; }
 .msg-table td.from { color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .msg-table tr.unread td { font-weight: 600; }
