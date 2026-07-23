@@ -124,14 +124,28 @@ a:hover { text-decoration: underline; }
 .meta dt { color: var(--muted); }
 .meta dd { margin: 0; word-break: break-all; }
 
-.toolbar { margin-bottom: 16px; display: flex; gap: 10px; }
+.toolbar { margin-bottom: 16px; display: flex; gap: 10px; align-items: center; }
+.toolbar .spacer { flex: 1; }
+
+.bodytabs { display: inline-flex; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+.bodytabs button {
+  border: none;
+  background: #fff;
+  color: var(--muted);
+  padding: 7px 16px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.bodytabs button + button { border-left: 1px solid var(--border); }
+.bodytabs button.active { background: var(--primary); color: #fff; }
 
 pre.body {
   white-space: pre-wrap;
   word-wrap: break-word;
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-  font-size: 14px;
-  line-height: 1.6;
+  font-family: inherit;
+  font-size: 15px;
+  line-height: 1.7;
+  max-width: 72ch;
   margin: 0;
 }
 
@@ -142,6 +156,7 @@ iframe.htmlbody {
   border-radius: 6px;
   background: #fff;
 }
+iframe.htmlbody[hidden] { display: none; }
 
 .attach-list { list-style: none; padding: 0; margin: 10px 0 0; display: flex; flex-wrap: wrap; gap: 8px; }
 .attach-list a {

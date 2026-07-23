@@ -9,16 +9,24 @@
     </dl>
   </div>
   <div class="toolbar">
+    {{if and .HasHTML .TextBody}}
+    <div class="bodytabs" role="tablist">
+      <button type="button" class="active" data-target="html">HTML</button>
+      <button type="button" data-target="text">纯文本</button>
+    </div>
+    {{end}}
+    <span class="spacer"></span>
     <form method="post" action="/mail/{{.Folder}}/{{.ID}}/delete"
           onsubmit="return confirm('确定删除这封邮件?')">
       <button class="btn btn-danger" type="submit">删除</button>
     </form>
   </div>
-  {{if .TextBody}}
-  <pre class="body">{{.TextBody}}</pre>
-  {{end}}
   {{if .HasHTML}}
-  <iframe class="htmlbody" sandbox="" src="/mail/{{.Folder}}/{{.ID}}/html"></iframe>
+  <iframe id="mail-html" class="htmlbody" sandbox="allow-same-origin"
+          src="/mail/{{.Folder}}/{{.ID}}/html"></iframe>
+  {{end}}
+  {{if .TextBody}}
+  <pre id="mail-text" class="body" {{if .HasHTML}}hidden{{end}}>{{.TextBody}}</pre>
   {{end}}
   {{if .Attach}}
   <h3 class="section">附件</h3>
@@ -29,4 +37,31 @@
   </ul>
   {{end}}
 </div>
+<script>
+(function () {
+  // HTML/plain-text tab toggle.
+  var tabs = document.querySelectorAll(".bodytabs button");
+  tabs.forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      tabs.forEach(function (b) { b.classList.toggle("active", b === btn); });
+      var showHTML = btn.dataset.target === "html";
+      document.getElementById("mail-html").hidden = !showHTML;
+      document.getElementById("mail-text").hidden = showHTML;
+    });
+  });
+  // Grow the iframe to its content height; the sandboxed document is
+  // same-origin (scripts are blocked by its CSP, not by the sandbox).
+  var frame = document.getElementById("mail-html");
+  if (frame) {
+    frame.addEventListener("load", function () {
+      try {
+        var doc = frame.contentDocument;
+        if (doc && doc.documentElement) {
+          frame.style.height = doc.documentElement.scrollHeight + "px";
+        }
+      } catch (e) { /* keep the default height */ }
+    });
+  }
+})();
+</script>
 {{template "foot" .}}

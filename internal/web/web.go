@@ -124,11 +124,11 @@ type viewData struct {
 }
 
 // walkMessage classifies the entities of a message: plain text body, HTML
-// body, and attachments (by walk order).
-func walkMessage(raw []byte) (text string, hasHTML bool, attach []attachment, htmlBody []byte) {
+// body (both decoded to UTF-8), and attachments (by walk order).
+func walkMessage(raw []byte) (text, htmlBody string, attach []attachment) {
 	e, err := message.Read(strings.NewReader(string(raw)))
 	if err != nil {
-		return "", false, nil, nil
+		return "", "", nil
 	}
 	n := 0
 	_ = e.Walk(func(_ []int, part *message.Entity, err error) error {
@@ -145,9 +145,8 @@ func walkMessage(raw []byte) (text string, hasHTML bool, attach []attachment, ht
 		switch {
 		case !isAttach && mt == "text/plain" && text == "":
 			text = readTextBody(part, params["charset"])
-		case !isAttach && mt == "text/html" && htmlBody == nil:
-			htmlBody, _ = io.ReadAll(part.Body)
-			hasHTML = true
+		case !isAttach && mt == "text/html" && htmlBody == "":
+			htmlBody = readTextBody(part, params["charset"])
 		case isAttach:
 			if filename == "" {
 				filename = fmt.Sprintf("part-%d", n)
@@ -157,7 +156,7 @@ func walkMessage(raw []byte) (text string, hasHTML bool, attach []attachment, ht
 		}
 		return nil
 	})
-	return text, hasHTML, attach, htmlBody
+	return text, htmlBody, attach
 }
 
 func readTextBody(e *message.Entity, cs string) string {
@@ -186,7 +185,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	h := headerOf(raw)
-	text, hasHTML, attach, _ := walkMessage(raw)
+	text, htmlBody, attach := walkMessage(raw)
 	s.render(w, "view.html", viewData{
 		Folder:   string(folder),
 		ID:       id,
@@ -195,7 +194,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 		To:       decodeHeader(h.Get("To")),
 		Date:     h.Get("Date"),
 		TextBody: text,
-		HasHTML:  hasHTML,
+		HasHTML:  htmlBody != "",
 		Attach:   attach,
 	})
 }
@@ -227,16 +226,17 @@ func (s *Server) handleHTML(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	_, _, _, htmlBody := walkMessage(raw)
-	if htmlBody == nil {
+	_, htmlBody, _ := walkMessage(raw)
+	if htmlBody == "" {
 		http.NotFound(w, r)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	// No scripts, no forms, no external requests other than images/styles.
+	// No scripts, no forms, no base-tag rewriting, no external requests
+	// other than images and inline styles.
 	w.Header().Set("Content-Security-Policy",
-		"default-src 'none'; img-src data: https:; style-src 'unsafe-inline'")
-	w.Write(htmlBody)
+		"default-src 'none'; img-src data: https:; style-src 'unsafe-inline'; form-action 'none'; base-uri 'none'")
+	io.WriteString(w, htmlBody)
 }
 
 func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
