@@ -38,9 +38,12 @@ func TestDeliverListOpenDelete(t *testing.T) {
 		t.Fatal("spam folder should be empty")
 	}
 
-	raw, err := s.Open(FolderInbox, id)
+	raw, folder, err := s.Open(id)
 	if err != nil {
 		t.Fatalf("Open: %v", err)
+	}
+	if folder != FolderInbox {
+		t.Fatalf("Open folder = %q, want inbox", folder)
 	}
 	if !strings.Contains(string(raw), "body text") {
 		t.Fatal("Open returned wrong content")
@@ -50,11 +53,43 @@ func TestDeliverListOpenDelete(t *testing.T) {
 		t.Fatal("message should be marked read after Open")
 	}
 
-	if err := s.Delete(FolderInbox, id); err != nil {
+	if err := s.Delete(id); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 	if len(s.mustList(t, FolderInbox)) != 0 {
 		t.Fatal("message should be gone after Delete")
+	}
+}
+
+func TestListAll(t *testing.T) {
+	s := New(t.TempDir())
+	if _, err := s.Deliver("me@example.com", FolderInbox, []byte(testMessage)); err != nil {
+		t.Fatal(err)
+	}
+	spamMsg := strings.Replace(testMessage, "Subject: Hello", "Subject: Junk", 1)
+	if _, err := s.Deliver("me@example.com", FolderSpam, []byte(spamMsg)); err != nil {
+		t.Fatal(err)
+	}
+	msgs, err := s.ListAll()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(msgs) != 2 {
+		t.Fatalf("ListAll returned %d messages, want 2", len(msgs))
+	}
+	var spamSeen bool
+	for _, m := range msgs {
+		if m.Subject == "Junk" {
+			spamSeen = true
+			if !m.Spam {
+				t.Error("spam message should have Spam=true")
+			}
+		} else if m.Spam {
+			t.Errorf("inbox message %q should have Spam=false", m.Subject)
+		}
+	}
+	if !spamSeen {
+		t.Error("spam message missing from ListAll")
 	}
 }
 
@@ -87,10 +122,10 @@ func TestInvalidReferences(t *testing.T) {
 		t.Fatal("expected error for invalid recipient")
 	}
 	for _, id := range []string{"../escape", "..", "a/b", ""} {
-		if _, err := s.Open(FolderInbox, id); err == nil {
+		if _, _, err := s.Open(id); err == nil {
 			t.Errorf("expected error for id %q", id)
 		}
-		if err := s.Delete(FolderInbox, id); err == nil {
+		if err := s.Delete(id); err == nil {
 			t.Errorf("expected error for id %q", id)
 		}
 	}

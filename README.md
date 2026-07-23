@@ -16,7 +16,8 @@ and serves a small web UI for reading and managing mail.
 - Maildir storage: `<data_dir>/<recipient>/<inbox|spam>/{tmp,new,cur}`
 - Web UI with a login page and encrypted cookie sessions (automatic `Secure`
   flag behind TLS-terminating proxies):
-  - inbox / spam listing with unread markers
+  - unified message listing (inbox and spam merged) with unread markers and
+    spam badges
   - HTML and plain-text bodies with tabbed switching; HTML rendered in a
     sandboxed, CSP-restricted iframe
   - attachment download and message deletion
