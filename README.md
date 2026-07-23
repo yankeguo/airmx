@@ -43,6 +43,21 @@ cp config.example.yaml config.yaml
 - 主机名的 A/AAAA 记录指向本服务器 IP
 - 建议配置 PTR 反向解析，以及本机域名的 SPF 记录
 
+## 部署（systemd）
+
+仓库自带 `airmx.service`（已配置 `network-online.target` 等待网络和基本加固）。安装：
+
+```sh
+sudo install -m755 airmx /usr/local/bin/
+sudo useradd -r -d /var/lib/airmx airmx
+sudo install -d -o airmx -g airmx /var/lib/airmx
+sudo install -d /etc/airmx
+sudo install -m600 config.yaml /etc/airmx/config.yaml   # data_dir 设为 /var/lib/airmx/data
+sudo install -m644 airmx.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl enable --now airmx
+```
+
 ## 本地测试
 
 不碰 25 端口也能验证完整流程。配置 `smtp_listen: ":2525"`，然后用 swaks 或标准 SMTP 客户端发信：

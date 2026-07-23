@@ -10,7 +10,8 @@ smtp_listen: ":25"
 web_listen: ":8080"
 
 # 邮件存储目录（maildir 结构：<data_dir>/<收件人>/<inbox|spam>/{tmp,new,cur}）
-data_dir: "./data"
+# 与 airmx.service 配合时保持 /var/lib/airmx/data;本地开发可用 ./data
+data_dir: "/var/lib/airmx/data"
 
 # 收件地址白名单，不在列表中的 RCPT TO 会在 SMTP 阶段直接被 550 拒收
 # 支持 "*@example.com" 形式的整个域名通配
