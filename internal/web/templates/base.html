@@ -5,15 +5,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>airmx</title>
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%232563eb' stroke-width='2'%3E%3Crect x='2' y='4' width='20' height='16' rx='2'/%3E%3Cpath d='m2 7 10 6 10-6'/%3E%3C/svg%3E">
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 <nav class="nav">
-  <a class="brand" href="/">
-    <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m2 7 10 6 10-6"/></svg>
-    airmx
-  </a>
+  <a class="brand" href="/">airmx</a>
   <a class="tab {{if eq .Folder "inbox"}}active{{end}}" href="/mail/inbox">收件箱</a>
   <a class="tab {{if eq .Folder "spam"}}active{{end}}" href="/mail/spam">垃圾箱</a>
   <span class="spacer"></span>

@@ -4,7 +4,6 @@ package web
 import (
 	"embed"
 	"fmt"
-	"hash/fnv"
 	"html/template"
 	"io"
 	"log"
@@ -13,7 +12,6 @@ import (
 	"net/mail"
 	"strings"
 	"time"
-	"unicode"
 
 	"github.com/emersion/go-message"
 	"github.com/emersion/go-message/charset"
@@ -117,17 +115,15 @@ type attachment struct {
 }
 
 type viewData struct {
-	Folder        string
-	ID            string
-	Subject       string
-	From          string
-	To            string
-	Date          string
-	AvatarInitial string
-	AvatarHue     uint32
-	TextBody      string
-	HasHTML       bool
-	Attach        []attachment
+	Folder   string
+	ID       string
+	Subject  string
+	From     string
+	To       string
+	Date     string
+	TextBody string
+	HasHTML  bool
+	Attach   []attachment
 }
 
 // formatListDate renders a compact timestamp for the message list: time only
@@ -147,24 +143,6 @@ func formatListDate(t time.Time) string {
 	default:
 		return t.Local().Format("2006-01-02")
 	}
-}
-
-// avatarInitial picks a display initial from a decoded From value.
-func avatarInitial(from string) string {
-	for _, r := range from {
-		if unicode.IsLetter(r) || unicode.IsDigit(r) {
-			return string(unicode.ToUpper(r))
-		}
-	}
-	return "?"
-}
-
-// avatarHue derives a stable hue (0-359) from the sender, so each sender
-// gets a consistent avatar color.
-func avatarHue(from string) uint32 {
-	h := fnv.New32a()
-	h.Write([]byte(strings.ToLower(from)))
-	return h.Sum32() % 360
 }
 
 // walkMessage classifies the entities of a message: plain text body, HTML
@@ -230,19 +208,16 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	}
 	h := headerOf(raw)
 	text, htmlBody, attach := walkMessage(raw)
-	from := decodeHeader(h.Get("From"))
 	s.render(w, "view.html", viewData{
-		Folder:        string(folder),
-		ID:            id,
-		Subject:       decodeHeader(h.Get("Subject")),
-		From:          from,
-		To:            decodeHeader(h.Get("To")),
-		Date:          h.Get("Date"),
-		AvatarInitial: avatarInitial(from),
-		AvatarHue:     avatarHue(from),
-		TextBody:      text,
-		HasHTML:       htmlBody != "",
-		Attach:        attach,
+		Folder:   string(folder),
+		ID:       id,
+		Subject:  decodeHeader(h.Get("Subject")),
+		From:     decodeHeader(h.Get("From")),
+		To:       decodeHeader(h.Get("To")),
+		Date:     h.Get("Date"),
+		TextBody: text,
+		HasHTML:  htmlBody != "",
+		Attach:   attach,
 	})
 }
 
