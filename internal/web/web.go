@@ -2,7 +2,6 @@
 package web
 
 import (
-	"crypto/subtle"
 	"embed"
 	"fmt"
 	"html/template"
@@ -16,7 +15,6 @@ import (
 	"github.com/emersion/go-message"
 	"github.com/emersion/go-message/charset"
 	"github.com/yankeguo/airmx/internal/maildir"
-	"golang.org/x/crypto/bcrypt"
 )
 
 //go:embed templates
@@ -38,38 +36,26 @@ func New(store *maildir.Store, username, passwordBcrypt string) *Server {
 		tpl:          template.Must(template.New("").ParseFS(templatesFS, "templates/*.html")),
 	}
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /{$}", s.handleIndex)
-	mux.HandleFunc("GET /mail/{folder}", s.handleList)
-	mux.HandleFunc("GET /mail/{folder}/{id}", s.handleView)
-	mux.HandleFunc("GET /mail/{folder}/{id}/html", s.handleHTML)
-	mux.HandleFunc("GET /mail/{folder}/{id}/attach/{n}", s.handleAttach)
-	mux.HandleFunc("POST /mail/{folder}/{id}/delete", s.handleDelete)
+	// Public routes.
+	mux.HandleFunc("GET /login", s.handleLogin)
+	mux.HandleFunc("POST /login", s.handleLogin)
+	mux.HandleFunc("GET /logout", s.handleLogout)
+	// Protected routes.
+	mux.Handle("GET /{$}", s.requireAuth(http.HandlerFunc(s.handleIndex)))
+	mux.Handle("GET /mail/{folder}", s.requireAuth(http.HandlerFunc(s.handleList)))
+	mux.Handle("GET /mail/{folder}/{id}", s.requireAuth(http.HandlerFunc(s.handleView)))
+	mux.Handle("GET /mail/{folder}/{id}/html", s.requireAuth(http.HandlerFunc(s.handleHTML)))
+	mux.Handle("GET /mail/{folder}/{id}/attach/{n}", s.requireAuth(http.HandlerFunc(s.handleAttach)))
+	mux.Handle("POST /mail/{folder}/{id}/delete", s.requireAuth(http.HandlerFunc(s.handleDelete)))
 	s.mux = mux
 	return s
 }
 
-// ListenAndServe serves the UI with HTTP Basic Auth on every request.
+// ListenAndServe serves the UI. All pages except /login require a valid
+// session cookie; see auth.go.
 func (s *Server) ListenAndServe(addr string) error {
 	log.Printf("web: listening on %s", addr)
-	return http.ListenAndServe(addr, s.basicAuth(s.mux))
-}
-
-func (s *Server) basicAuth(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		u, p, ok := r.BasicAuth()
-		if !ok ||
-			subtle.ConstantTimeCompare([]byte(u), []byte(s.username)) != 1 ||
-			!checkPassword(s.passwordHash, p) {
-			w.Header().Set("WWW-Authenticate", `Basic realm="airmx"`)
-			http.Error(w, "unauthorized", http.StatusUnauthorized)
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
-}
-
-func checkPassword(hash []byte, password string) bool {
-	return bcrypt.CompareHashAndPassword(hash, []byte(password)) == nil
+	return http.ListenAndServe(addr, s.mux)
 }
 
 // parseFolder validates the folder path parameter.

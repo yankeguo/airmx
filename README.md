@@ -9,7 +9,7 @@
 - SPF + DKIM + DMARC 三项校验，结果写入 `Authentication-Results` 头
 - 可配置策略：每种校验失败时选择 reject（DATA 阶段 `554` 拒收）/ spam（垃圾箱）/ inbox（收件箱）
 - Maildir 格式存储：`data/<收件人>/<inbox|spam>/{tmp,new,cur}`
-- Web 界面（HTTP Basic Auth）：收件箱/垃圾箱列表、正文查看（HTML 正文 sandbox 渲染）、附件下载、删除
+- Web 界面（登录页 + 加密 Cookie 会话）：收件箱/垃圾箱列表、正文查看（HTML 正文 sandbox 渲染）、附件下载、删除
 
 ## 构建
 
@@ -52,7 +52,7 @@ swaks --server 127.0.0.1:2525 --from alice@example.com --to me@example.com \
       --header "Subject: 测试" --body "hello"
 ```
 
-随后打开 `http://127.0.0.1:8080/mail/inbox`（Basic Auth 登录）查看。注意本机测试时 SPF 多半为 none/error，属于正常现象——`spf_fail` / `spf_softfail` 只匹配明确的 `-all` / `~all` 结果。
+随后打开 `http://127.0.0.1:8080/` 登录后查看。注意本机测试时 SPF 多半为 none/error，属于正常现象——`spf_fail` / `spf_softfail` 只匹配明确的 `-all` / `~all` 结果。
 
 ## 范围
 
