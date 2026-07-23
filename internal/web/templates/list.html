@@ -1,16 +1,22 @@
 {{template "head" .}}
+<div class="card">
 {{if .Messages}}
-<table>
-  <tr><th>主题</th><th>发件人</th><th>日期</th></tr>
+<table class="msg-table">
+  <thead>
+    <tr><th>主题</th><th>发件人</th><th>日期</th></tr>
+  </thead>
+  <tbody>
   {{range .Messages}}
-  <tr {{if .Unread}}class="unread"{{end}}>
-    <td><a href="/mail/{{$.Folder}}/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</a></td>
-    <td>{{.From}}</td>
-    <td class="date">{{.Date.Format "2006-01-02 15:04"}}</td>
-  </tr>
+    <tr {{if .Unread}}class="unread"{{end}}>
+      <td><span class="dot {{if not .Unread}}read{{end}}"></span><a href="/mail/{{$.Folder}}/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</a></td>
+      <td class="from">{{.From}}</td>
+      <td class="date">{{.Date.Format "2006-01-02 15:04"}}</td>
+    </tr>
   {{end}}
+  </tbody>
 </table>
 {{else}}
 <div class="empty">没有邮件</div>
 {{end}}
+</div>
 {{template "foot" .}}
