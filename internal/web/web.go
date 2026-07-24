@@ -15,7 +15,9 @@ import (
 	"time"
 
 	"github.com/emersion/go-message"
-	"github.com/emersion/go-message/charset"
+	// Registers charset decoders (GB2312/GBK/Big5/...) into go-message's
+	// global registry, so message.Read converts bodies to UTF-8 itself.
+	_ "github.com/emersion/go-message/charset"
 	"github.com/yankeguo/airmx/internal/maildir"
 	htmlcharset "golang.org/x/net/html/charset"
 )
@@ -156,10 +158,13 @@ func formatListDate(t time.Time) string {
 }
 
 // walkMessage classifies the entities of a message: plain text body, HTML
-// body (both decoded to UTF-8), and attachments (by walk order).
+// body (both already decoded to UTF-8 by go-message), and attachments (by
+// walk order).
 func walkMessage(raw []byte) (text, htmlBody string, attach []attachment) {
-	e, err := message.Read(strings.NewReader(string(raw)))
-	if err != nil {
+	// Read may return an error for unknown charsets/encodings while still
+	// returning a usable entity; walk whatever we got.
+	e, _ := message.Read(strings.NewReader(string(raw)))
+	if e == nil {
 		return "", "", nil
 	}
 	n := 0
@@ -176,9 +181,9 @@ func walkMessage(raw []byte) (text, htmlBody string, attach []attachment) {
 		isAttach := disp == "attachment" || filename != ""
 		switch {
 		case !isAttach && mt == "text/plain" && text == "":
-			text = readTextBody(part, params["charset"])
+			text = readBody(part)
 		case !isAttach && mt == "text/html" && htmlBody == "":
-			htmlBody = readTextBody(part, params["charset"])
+			htmlBody = readBody(part)
 		case isAttach:
 			if filename == "" {
 				filename = fmt.Sprintf("part-%d", n)
@@ -191,14 +196,11 @@ func walkMessage(raw []byte) (text, htmlBody string, attach []attachment) {
 	return text, htmlBody, attach
 }
 
-func readTextBody(e *message.Entity, cs string) string {
-	var r io.Reader = e.Body
-	if cs != "" {
-		if cr, err := charset.Reader(cs, e.Body); err == nil {
-			r = cr
-		}
-	}
-	b, err := io.ReadAll(r)
+// readBody returns the decoded body of an entity. go-message already
+// converts transfer encoding and charset to UTF-8 on Read, so no further
+// conversion is needed (doing it again would double-decode).
+func readBody(e *message.Entity) string {
+	b, err := io.ReadAll(e.Body)
 	if err != nil {
 		return ""
 	}
