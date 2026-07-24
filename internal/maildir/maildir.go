@@ -21,6 +21,8 @@ import (
 	"sort"
 	"strings"
 	"time"
+
+	htmlcharset "golang.org/x/net/html/charset"
 )
 
 // Message is a summary of a stored message for listing.
@@ -123,28 +125,35 @@ func (s *Store) List() ([]Message, error) {
 	return msgs, nil
 }
 
+// headerDecoder decodes RFC 2047 encoded-words in headers, including
+// non-UTF-8 charsets such as GB2312/Big5 (stdlib alone handles only UTF-8).
+var headerDecoder = &mime.WordDecoder{CharsetReader: htmlcharset.NewReaderLabel}
+
+func decodeHeader(s string) string {
+	if d, err := headerDecoder.DecodeHeader(s); err == nil {
+		return d
+	}
+	return s
+}
+
 func fillHeaders(m *Message, raw []byte) {
 	msg, err := mail.ReadMessage(strings.NewReader(string(raw)))
 	if err != nil {
 		return
 	}
 	h := msg.Header
-	m.Subject = h.Get("Subject")
-	if s, err := new(mime.WordDecoder).DecodeHeader(m.Subject); err == nil {
-		m.Subject = s
-	}
+	m.Subject = decodeHeader(h.Get("Subject"))
 	if addr, err := mail.ParseAddress(h.Get("From")); err == nil {
-		name := addr.Name
-		if d, err := new(mime.WordDecoder).DecodeHeader(name); err == nil {
-			name = d
-		}
+		name := decodeHeader(addr.Name)
 		if name != "" {
 			m.From = name + " <" + addr.Address + ">"
 		} else {
 			m.From = addr.Address
 		}
 	} else {
-		m.From = h.Get("From")
+		// Even when the address structure is unparseable, the raw header
+		// may still contain decodable encoded-words.
+		m.From = decodeHeader(h.Get("From"))
 	}
 	// Unparseable or missing Date leaves the zero time; the message then
 	// sorts oldest, which is acceptable for malformed mail.

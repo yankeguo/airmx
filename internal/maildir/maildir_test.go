@@ -104,6 +104,20 @@ func TestEncodedWordFrom(t *testing.T) {
 	}
 }
 
+func TestGB2312EncodedHeaders(t *testing.T) {
+	raw := "From: =?gb2312?B?suLK1NPKvP4=?= <noreply@example.cn>\r\n" +
+		"Subject: =?gb2312?B?suLK1NPKvP4=?=\r\n" +
+		"\r\nhi\r\n"
+	var m Message
+	fillHeaders(&m, []byte(raw))
+	if m.Subject != "测试邮件" {
+		t.Fatalf("Subject = %q", m.Subject)
+	}
+	if m.From != "测试邮件 <noreply@example.cn>" {
+		t.Fatalf("From = %q", m.From)
+	}
+}
+
 func TestInvalidReferences(t *testing.T) {
 	s := New(t.TempDir())
 	if _, err := s.Deliver("bad/recipient@b.com", []byte("x")); err == nil {
