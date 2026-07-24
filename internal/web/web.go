@@ -17,6 +17,7 @@ import (
 	"github.com/emersion/go-message"
 	"github.com/emersion/go-message/charset"
 	"github.com/yankeguo/airmx/internal/maildir"
+	htmlcharset "golang.org/x/net/html/charset"
 )
 
 //go:embed templates
@@ -226,8 +227,12 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// headerDecoder decodes RFC 2047 encoded-words in headers, including
+// non-UTF-8 charsets such as GB2312/Big5 (stdlib alone handles only UTF-8).
+var headerDecoder = &mime.WordDecoder{CharsetReader: htmlcharset.NewReaderLabel}
+
 func decodeHeader(s string) string {
-	if d, err := new(mime.WordDecoder).DecodeHeader(s); err == nil {
+	if d, err := headerDecoder.DecodeHeader(s); err == nil {
 		return d
 	}
 	return s
