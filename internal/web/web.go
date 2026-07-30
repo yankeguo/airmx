@@ -216,6 +216,11 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 	}
 	h := headerOf(raw)
 	text, htmlBody, attach := walkMessage(raw)
+	// Messages without a text/plain part get one derived from the HTML, so
+	// the default view never needs to load the HTML (and its remote images).
+	if text == "" && htmlBody != "" {
+		text = htmlToText(htmlBody)
+	}
 	s.render(w, "view.html", viewData{
 		ID:       id,
 		Subject:  decodeHeader(h.Get("Subject")),

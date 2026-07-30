@@ -12,7 +12,7 @@
   </div>
   <hr class="divider">
   <div class="toolbar">
-    {{if and .HasHTML .TextBody}}
+    {{if .HasHTML}}
     <div class="bodytabs" role="tablist">
       <button type="button" class="active" data-target="text">纯文本</button>
       <button type="button" data-target="html">HTML</button>
@@ -25,14 +25,17 @@
     </form>
   </div>
   {{if .HasHTML}}
-  <!-- data-src + lazy src assignment: remote images (tracking pixels) are
-       only fetched after the user explicitly switches to the HTML tab. -->
+  <!-- data-src + lazy src assignment: the HTML body (and its remote images,
+       i.e. tracking pixels) is only fetched after the user explicitly
+       switches to the HTML tab; the iframe always starts hidden. -->
   <iframe id="mail-html" class="htmlbody"
           sandbox="allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-          data-src="/mail/{{.ID}}/html" {{if .TextBody}}hidden{{end}}></iframe>
+          data-src="/mail/{{.ID}}/html" hidden></iframe>
   {{end}}
   {{if .TextBody}}
   <pre id="mail-text" class="body">{{.TextBody}}</pre>
+  {{else if .HasHTML}}
+  <pre id="mail-text" class="body">(无法提取纯文本内容)</pre>
   {{end}}
   {{if .Attach}}
   <h3 class="section">附件</h3>
@@ -60,10 +63,8 @@
       document.getElementById("mail-text").hidden = showHTML;
     });
   });
-  // If there is no plain-text alternative, load the HTML right away.
-  if (frame && !document.getElementById("mail-text") && frame.dataset.src) {
-    frame.src = frame.dataset.src;
-  }
+  // The HTML iframe is never loaded automatically; plain text (real or
+  // derived from the HTML server-side) is always the default view.
   // Grow the iframe to its content height; the sandboxed document is
   // same-origin (scripts are blocked by its CSP, not by the sandbox).
   if (frame) {
