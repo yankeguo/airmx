@@ -20,8 +20,10 @@ and serves a small web UI for reading and managing mail.
   flag behind TLS-terminating proxies):
   - unified message listing (inbox and spam merged) with unread markers and
     spam badges
-  - HTML and plain-text bodies with tabbed switching; HTML rendered in a
-    sandboxed, CSP-restricted iframe
+  - plain-text-first viewing: messages without a text/plain part get one
+    derived from the HTML; the HTML version (and its remote images, i.e.
+    tracking pixels) is only loaded after explicitly switching to the HTML
+    tab, where it renders in a sandboxed, CSP-restricted iframe
   - attachment download and message deletion
 - Single static binary; templates and CSS embedded with `go:embed`
 
