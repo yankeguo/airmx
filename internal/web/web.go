@@ -2,7 +2,9 @@
 package web
 
 import (
+	"bytes"
 	"embed"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"io"
@@ -19,6 +21,7 @@ import (
 	// global registry, so message.Read converts bodies to UTF-8 itself.
 	_ "github.com/emersion/go-message/charset"
 	"github.com/yankeguo/airmx/internal/maildir"
+	"github.com/yankeguo/airmx/internal/push"
 	htmlcharset "golang.org/x/net/html/charset"
 )
 
@@ -32,15 +35,19 @@ type Server struct {
 	store        *maildir.Store
 	username     string
 	passwordHash []byte
+	push         *push.Service // nil disables Web Push
+	swJS         []byte
 	tpl          *template.Template
 	mux          *http.ServeMux
 }
 
-func New(store *maildir.Store, username, passwordBcrypt string) *Server {
+func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Service) *Server {
 	s := &Server{
 		store:        store,
 		username:     username,
 		passwordHash: []byte(passwordBcrypt),
+		push:         pushSvc,
+		swJS:         must(staticFS.ReadFile("static/sw.js")),
 		tpl: template.Must(template.New("").Funcs(template.FuncMap{
 			"fdate": formatListDate,
 			"add":   func(a, b int) int { return a + b },
@@ -49,8 +56,10 @@ func New(store *maildir.Store, username, passwordBcrypt string) *Server {
 	}
 	mux := http.NewServeMux()
 	// Public routes. Static assets must be reachable from the login page,
-	// so they live outside the auth middleware.
+	// so they live outside the auth middleware; the service worker must sit
+	// at the root to control the whole origin.
 	mux.Handle("GET /static/", withCache(http.FileServerFS(staticFS)))
+	mux.HandleFunc("GET /sw.js", s.handleServiceWorker)
 	mux.HandleFunc("GET /login", s.handleLogin)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("GET /logout", s.handleLogout)
@@ -60,6 +69,8 @@ func New(store *maildir.Store, username, passwordBcrypt string) *Server {
 	mux.Handle("GET /mail/{id}/html", s.requireAuth(http.HandlerFunc(s.handleHTML)))
 	mux.Handle("GET /mail/{id}/attach/{n}", s.requireAuth(http.HandlerFunc(s.handleAttach)))
 	mux.Handle("POST /mail/{id}/delete", s.requireAuth(http.HandlerFunc(s.handleDelete)))
+	mux.Handle("POST /api/push/subscribe", s.requireAuth(http.HandlerFunc(s.handlePushSubscribe)))
+	mux.Handle("POST /api/push/unsubscribe", s.requireAuth(http.HandlerFunc(s.handlePushUnsubscribe)))
 	s.mux = mux
 	return s
 }
@@ -85,6 +96,8 @@ type listData struct {
 	Page     int
 	Pages    int
 	Total    int
+	// PushKey is the VAPID public key, empty when Web Push is disabled.
+	PushKey string
 }
 
 // listPageSize is the number of messages shown per page.
@@ -111,11 +124,16 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 	}
 	start := (page - 1) * listPageSize
 	end := min(start+listPageSize, total)
+	var pushKey string
+	if s.push != nil {
+		pushKey = s.push.PublicKey()
+	}
 	s.render(w, "list.html", listData{
 		Messages: msgs[start:end],
 		Page:     page,
 		Pages:    pages,
 		Total:    total,
+		PushKey:  pushKey,
 	})
 }
 
@@ -346,6 +364,53 @@ func (s *Server) handleDelete(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+// handleServiceWorker serves the push service worker from the root scope.
+// It is never cached so updates roll out on the next page load.
+func (s *Server) handleServiceWorker(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	w.Header().Set("Cache-Control", "no-cache")
+	http.ServeContent(w, r, "sw.js", time.Time{}, bytes.NewReader(s.swJS))
+}
+
+// handlePushSubscribe stores a browser push subscription
+// (PushSubscription.toJSON() as the request body).
+func (s *Server) handlePushSubscribe(w http.ResponseWriter, r *http.Request) {
+	if s.push == nil {
+		http.NotFound(w, r)
+		return
+	}
+	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<16))
+	if err != nil {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if err := s.push.Subscribe(body); err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// handlePushUnsubscribe removes a subscription by endpoint.
+func (s *Server) handlePushUnsubscribe(w http.ResponseWriter, r *http.Request) {
+	if s.push == nil {
+		http.NotFound(w, r)
+		return
+	}
+	var req struct {
+		Endpoint string `json:"endpoint"`
+	}
+	if err := json.NewDecoder(io.LimitReader(r.Body, 1<<16)).Decode(&req); err != nil || req.Endpoint == "" {
+		http.Error(w, "invalid request", http.StatusBadRequest)
+		return
+	}
+	if err := s.push.Unsubscribe(req.Endpoint); err != nil {
+		http.Error(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (s *Server) render(w http.ResponseWriter, name string, data any) {

@@ -28,6 +28,9 @@ type Options struct {
 	// TLSCertDir, if set, enables STARTTLS using <TLSCertDir>/<Domain>.crt
 	// and <TLSCertDir>/<Domain>.key, reloaded automatically on renewal.
 	TLSCertDir string
+	// OnDeliver, if set, is called once after a message has been delivered
+	// to all its recipients. It must be non-blocking.
+	OnDeliver func(raw []byte)
 }
 
 type backend struct {
@@ -112,6 +115,9 @@ func (s *session) Data(r io.Reader) error {
 				Message:      "internal delivery error",
 			}
 		}
+	}
+	if s.opts.OnDeliver != nil {
+		s.opts.OnDeliver(raw)
 	}
 	return nil
 }

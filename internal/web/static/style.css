@@ -150,6 +150,12 @@ a:hover { text-decoration: underline; }
   font-size: 14px;
 }
 
+.push-bar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 12px;
+}
+
 .pager {
   display: flex;
   align-items: center;
