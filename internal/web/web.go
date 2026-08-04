@@ -41,7 +41,12 @@ type Server struct {
 	mux          *http.ServeMux
 }
 
-func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Service) *Server {
+func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Service, assetVersion string) *Server {
+	// Without an injected build revision, fall back to the process start
+	// time so cache busting still works on restart.
+	if assetVersion == "" {
+		assetVersion = strconv.FormatInt(time.Now().Unix(), 36)
+	}
 	s := &Server{
 		store:        store,
 		username:     username,
@@ -52,6 +57,7 @@ func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Se
 			"fdate": formatListDate,
 			"add":   func(a, b int) int { return a + b },
 			"sub":   func(a, b int) int { return a - b },
+			"asset": func(p string) string { return assetURL(assetVersion, p) },
 		}).ParseFS(templatesFS, "templates/*.html")),
 	}
 	mux := http.NewServeMux()
@@ -83,13 +89,20 @@ func (s *Server) ListenAndServe(addr string) error {
 	return http.ListenAndServe(addr, s.mux)
 }
 
-// withCache sets a short cache lifetime on embedded static assets; they are
-// content-stable between releases and re-fetched on restart anyway.
+// withCache sets a long cache lifetime on embedded static assets: their
+// URLs carry a build-revision query (?v=, see the asset template func), so
+// the content at any given URL never changes.
 func withCache(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "public, max-age=3600")
+		w.Header().Set("Cache-Control", "public, max-age=604800")
 		next.ServeHTTP(w, r)
 	})
+}
+
+// assetURL appends the build revision to a static asset path for cache
+// busting: /static/style.css -> /static/style.css?v=abc1234.
+func assetURL(version, path string) string {
+	return path + "?v=" + version
 }
 
 type listData struct {

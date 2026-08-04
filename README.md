@@ -31,8 +31,12 @@ and serves a small web UI for reading and managing mail.
 ## Build
 
 ```sh
-go build -o airmx .
+go build -ldflags "-X main.assetVersion=$(git rev-parse --short HEAD)" -o airmx .
 ```
+
+The `assetVersion` stamp ends up in static asset URLs (`?v=<revision>`) for
+cache busting; without it the server falls back to its start time, so plain
+`go build` works too.
 
 ## Configure
 
