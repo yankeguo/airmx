@@ -20,6 +20,11 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+// assetVersion is injected at build time via
+// -ldflags "-X main.assetVersion=$(git rev-parse --short HEAD)" and appended
+// to static asset URLs for cache busting.
+var assetVersion string
+
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
 
@@ -73,7 +78,7 @@ func main() {
 		})
 	}()
 	go func() {
-		errCh <- web.New(store, cfg.Web.Username, cfg.Web.PasswordBcrypt, pushSvc).ListenAndServe(cfg.WebListen)
+		errCh <- web.New(store, cfg.Web.Username, cfg.Web.PasswordBcrypt, pushSvc, assetVersion).ListenAndServe(cfg.WebListen)
 	}()
 
 	sigCh := make(chan os.Signal, 1)
