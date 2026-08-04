@@ -16,8 +16,9 @@ and serves a small web UI for reading and managing mail.
 - Maildir storage: `<data_dir>/<recipient>/{tmp,new,cur}` — the spam
   classification lives in the injected `X-Spam-Status` header, so no folder
   split is needed
-- Web UI with a login page and encrypted cookie sessions (automatic `Secure`
-  flag behind TLS-terminating proxies):
+- Web UI (Chinese and English, following the browser language with a manual
+  switch in the nav) with a login page and encrypted cookie sessions
+  (automatic `Secure` flag behind TLS-terminating proxies):
   - unified message listing (inbox and spam merged) with unread markers and
     spam badges
   - plain-text-first viewing: messages without a text/plain part get one
@@ -130,7 +131,8 @@ iOS requires the page to be installed to the home screen). Setup:
 
 Paste the printed key pair into `web.push` in your config, restart, open
 the web UI **over HTTPS** (push requires a secure context — use the reverse
-proxy setup above), and click 开启邮件通知 on the message list. Each
+proxy setup above), and click 打开 Web 通知 / Enable notifications on the
+message list. Each
 browser you enable it on registers a subscription, stored in
 `<data_dir>/push_subscriptions.json`; dead endpoints are pruned
 automatically on the next delivery.

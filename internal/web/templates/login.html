@@ -1,21 +1,21 @@
 <!doctype html>
-<html lang="zh">
+<html lang="{{.T.Lang}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>登录 - AirMX</title>
+<title>{{.T.LoginTitle}}</title>
 <link rel="stylesheet" href="/static/style.css">
 </head>
 <body class="login-wrap">
 <div class="login-card">
-  <h1>AirMX 邮箱</h1>
+  <h1>{{.T.LoginHeading}}</h1>
   {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
   <form method="post" action="/login">
-    <label for="username">用户名</label>
+    <label for="username">{{.T.Username}}</label>
     <input id="username" name="username" autocomplete="username" required autofocus>
-    <label for="password">密码</label>
+    <label for="password">{{.T.Password}}</label>
     <input id="password" name="password" type="password" autocomplete="current-password" required>
-    <button type="submit">登录</button>
+    <button type="submit">{{.T.SignIn}}</button>
   </form>
 </div>
 </body>

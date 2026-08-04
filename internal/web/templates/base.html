@@ -1,6 +1,6 @@
 {{define "head"}}
 <!doctype html>
-<html lang="zh">
+<html lang="{{.T.Lang}}">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -11,7 +11,8 @@
 <nav class="nav">
   <a class="brand" href="/">AirMX</a>
   <span class="spacer"></span>
-  <a class="tab" href="/logout">退出</a>
+  <a class="tab" href="/lang?set={{if eq .T.Lang "zh"}}en{{else}}zh{{end}}">{{.T.LangSwitch}}</a>
+  <a class="tab" href="/logout">{{.T.Logout}}</a>
 </nav>
 <main class="container">
 {{end}}

@@ -18,7 +18,7 @@
 
   function render(on) {
     btn.dataset.on = on ? "1" : "";
-    btn.textContent = on ? "关闭邮件通知" : "开启邮件通知";
+    btn.textContent = on ? btn.dataset.labelOff : btn.dataset.labelOn;
   }
 
   function postJSON(url, body) {
@@ -56,7 +56,7 @@
         });
       }
       return Notification.requestPermission().then(function (perm) {
-        if (perm !== "granted") throw new Error("通知权限被拒绝");
+        if (perm !== "granted") throw new Error(btn.dataset.errDenied);
         return reg.pushManager.subscribe({
           userVisibleOnly: true,
           applicationServerKey: b64ToUint8(btn.dataset.key),
@@ -74,7 +74,7 @@
         render(!!sub);
       })
       .catch(function (err) {
-        alert("操作失败：" + (err && err.message ? err.message : err));
+        alert(btn.dataset.errFailed + ": " + (err && err.message ? err.message : err));
       })
       .finally(function () {
         btn.disabled = false;

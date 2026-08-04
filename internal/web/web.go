@@ -63,6 +63,7 @@ func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Se
 	mux.HandleFunc("GET /login", s.handleLogin)
 	mux.HandleFunc("POST /login", s.handleLogin)
 	mux.HandleFunc("GET /logout", s.handleLogout)
+	mux.HandleFunc("GET /lang", s.handleLang)
 	// Protected routes.
 	mux.Handle("GET /{$}", s.requireAuth(http.HandlerFunc(s.handleList)))
 	mux.Handle("GET /mail/{id}", s.requireAuth(http.HandlerFunc(s.handleView)))
@@ -92,6 +93,7 @@ func withCache(next http.Handler) http.Handler {
 }
 
 type listData struct {
+	T        catalog
 	Messages []maildir.Message
 	Page     int
 	Pages    int
@@ -129,6 +131,7 @@ func (s *Server) handleList(w http.ResponseWriter, r *http.Request) {
 		pushKey = s.push.PublicKey()
 	}
 	s.render(w, "list.html", listData{
+		T:        catalogFor(r),
 		Messages: msgs[start:end],
 		Page:     page,
 		Pages:    pages,
@@ -145,6 +148,7 @@ type attachment struct {
 }
 
 type viewData struct {
+	T        catalog
 	ID       string
 	Subject  string
 	From     string
@@ -240,6 +244,7 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 		text = htmlToText(htmlBody)
 	}
 	s.render(w, "view.html", viewData{
+		T:        catalogFor(r),
 		ID:       id,
 		Subject:  decodeHeader(h.Get("Subject")),
 		From:     decodeHeader(h.Get("From")),

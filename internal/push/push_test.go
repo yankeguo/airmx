@@ -146,7 +146,7 @@ func TestNotifyDeliversAndPrunes(t *testing.T) {
 		t.Fatalf("want 2 subscriptions, got %d", s.Count())
 	}
 
-	s.Notify("新邮件", "alice@example.com — hello")
+	s.Notify("新邮件", "New mail", "alice@example.com — hello")
 
 	if got != 2 {
 		t.Fatalf("want 2 push requests, got %d", got)

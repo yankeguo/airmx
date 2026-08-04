@@ -136,18 +136,19 @@ func (s *Server) requireAuth(next http.Handler) http.Handler {
 }
 
 func (s *Server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	cat := catalogFor(r)
 	if r.Method == http.MethodGet {
-		s.render(w, "login.html", map[string]any{})
+		s.render(w, "login.html", map[string]any{"T": cat})
 		return
 	}
 	if err := r.ParseForm(); err != nil {
-		s.render(w, "login.html", map[string]any{"Error": "请求无效"})
+		s.render(w, "login.html", map[string]any{"T": cat, "Error": cat.ErrInvalidRequest})
 		return
 	}
 	u, p := r.PostForm.Get("username"), r.PostForm.Get("password")
 	if subtle.ConstantTimeCompare([]byte(u), []byte(s.username)) != 1 ||
 		bcrypt.CompareHashAndPassword(s.passwordHash, []byte(p)) != nil {
-		s.render(w, "login.html", map[string]any{"Error": "用户名或密码错误"})
+		s.render(w, "login.html", map[string]any{"T": cat, "Error": cat.ErrBadCredentials})
 		return
 	}
 	if err := s.setSessionCookie(w, r); err != nil {
