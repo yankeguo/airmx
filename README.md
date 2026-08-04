@@ -80,6 +80,21 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now airmx
 ```
 
+## Deploy with Docker
+
+Every push builds `ghcr.io/yankeguo/airmx` (`latest` on the default branch,
+plus per-branch and per-commit tags). The image contains **no default config
+file and no data directory** — you must mount your own config at
+`/etc/airmx/config.yaml`, and set `data_dir` to a path you also mount:
+
+```sh
+docker run -d --name airmx \
+  -p 25:25 -p 8080:8080 \
+  -v /path/to/config.yaml:/etc/airmx/config.yaml:ro \
+  -v airmx-data:/data \
+  ghcr.io/yankeguo/airmx:latest   # data_dir: /data
+```
+
 ## Reverse proxy (optional)
 
 To serve the web UI over HTTPS, point your proxy at `web_listen`
