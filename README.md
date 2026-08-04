@@ -95,6 +95,29 @@ docker run -d --name airmx \
   ghcr.io/yankeguo/airmx:latest   # data_dir: /data
 ```
 
+## STARTTLS (optional)
+
+Set `tls_cert_dir` to a directory containing `<domain>.crt` and
+`<domain>.key` (PEM; ECDSA and RSA both work) to advertise STARTTLS on the
+SMTP port. The certificate is loaded at startup and reloaded automatically
+when the files change or approach expiry, so you can point it at a
+directory maintained by an external ACME client. For example, with Caddy
+issuing and renewing the certificate, mount its storage into the container:
+
+```sh
+docker run -d --name airmx \
+  -p 25:25 -p 8080:8080 \
+  -v /path/to/config.yaml:/etc/airmx/config.yaml:ro \
+  -v airmx-data:/data \
+  -v /var/lib/caddy/.local/share/caddy/certificates:/etc/airmx/certs:ro \
+  ghcr.io/yankeguo/airmx:latest   # tls_cert_dir: /etc/airmx/certs/<acme-issuer-dir>
+```
+
+Note that Caddy stores certificates one level deeper
+(`.../certificates/<issuer>/<domain>/<domain>.crt`), so mount or symlink
+accordingly — airmx expects the `.crt`/`.key` pair directly inside
+`tls_cert_dir`.
+
 ## Reverse proxy (optional)
 
 To serve the web UI over HTTPS, point your proxy at `web_listen`

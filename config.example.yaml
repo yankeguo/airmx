@@ -16,6 +16,13 @@ web_listen: ":8080"
 # use ./data for local development.
 data_dir: "/var/lib/airmx/data"
 
+# Optional: enable STARTTLS on the SMTP port. The directory must contain
+# <domain>.crt and <domain>.key (PEM; ECDSA and RSA both work). Designed to
+# be a mount of a certificate directory maintained by an external tool such
+# as Caddy — the certificate is reloaded automatically when the files
+# change or approach expiry.
+# tls_cert_dir: "/etc/airmx/certs"
+
 # Recipient allowlist. RCPT TO addresses not listed here are rejected
 # at SMTP time with 550. "*@example.com" wildcards a whole domain.
 recipients:

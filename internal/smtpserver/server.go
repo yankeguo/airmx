@@ -3,10 +3,12 @@ package smtpserver
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"path/filepath"
 	"strings"
 
 	smtp "github.com/emersion/go-smtp"
@@ -23,6 +25,9 @@ type Options struct {
 	Policy           mailauth.Policy
 	AcceptsRecipient func(addr string) bool
 	Store            *maildir.Store
+	// TLSCertDir, if set, enables STARTTLS using <TLSCertDir>/<Domain>.crt
+	// and <TLSCertDir>/<Domain>.key, reloaded automatically on renewal.
+	TLSCertDir string
 }
 
 type backend struct {
@@ -128,6 +133,19 @@ func ListenAndServe(addr string, opts Options) error {
 	s.Domain = opts.Domain
 	s.MaxMessageBytes = MaxMessageBytes
 	s.MaxRecipients = 50
+	if opts.TLSCertDir != "" {
+		cr, err := NewCertReloader(
+			filepath.Join(opts.TLSCertDir, opts.Domain+".crt"),
+			filepath.Join(opts.TLSCertDir, opts.Domain+".key"),
+		)
+		if err != nil {
+			return fmt.Errorf("tls: %w", err)
+		}
+		s.TLSConfig = &tls.Config{
+			GetCertificate: cr.GetCertificate,
+			MinVersion:     tls.VersionTLS12,
+		}
+	}
 	// AUTH is not advertised because session does not implement AuthSession;
 	// this server only receives mail.
 	log.Printf("smtp: listening on %s", addr)

@@ -39,6 +39,7 @@ func main() {
 			Policy:           cfg.Policy,
 			AcceptsRecipient: cfg.AcceptsRecipient,
 			Store:            store,
+			TLSCertDir:       cfg.TLSCertDir,
 		})
 	}()
 	go func() {
