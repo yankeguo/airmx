@@ -6,8 +6,11 @@ self.addEventListener("push", function (e) {
   try {
     data = e.data ? e.data.json() : {};
   } catch (err) {}
+  // The payload carries both title variants; pick by the browser's locale.
+  var zh = (self.navigator.language || "").toLowerCase().indexOf("zh") === 0;
+  var title = (zh ? data.title_zh : data.title_en) || data.title_zh || data.title_en || "AirMX";
   e.waitUntil(
-    self.registration.showNotification(data.title || "AirMX", {
+    self.registration.showNotification(title, {
       body: data.body || "",
       data: { url: data.url || "/" },
     })

@@ -135,5 +135,5 @@ func notifyPush(svc *push.Service, raw []byte) {
 		}
 		body += subject
 	}
-	svc.Notify("新邮件", body)
+	svc.Notify("新邮件", "New mail", body)
 }

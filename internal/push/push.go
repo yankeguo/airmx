@@ -131,9 +131,11 @@ func (s *Service) saveLocked() error {
 	return os.Rename(tmp, s.file)
 }
 
-// Notify sends a notification to every subscription. Endpoints that are
-// gone (404/410, i.e. the user revoked the permission) are pruned.
-func (s *Service) Notify(title, body string) {
+// Notify sends a notification to every subscription. Both title variants
+// travel in the payload; the service worker picks one by the browser's
+// locale. Endpoints that are gone (404/410, i.e. the user revoked the
+// permission) are pruned.
+func (s *Service) Notify(titleZH, titleEN, body string) {
 	s.mu.Lock()
 	subs := make([]*webpush.Subscription, 0, len(s.subs))
 	for _, sub := range s.subs {
@@ -144,7 +146,12 @@ func (s *Service) Notify(title, body string) {
 	if len(subs) == 0 {
 		return
 	}
-	payload, err := json.Marshal(map[string]string{"title": title, "body": body, "url": "/"})
+	payload, err := json.Marshal(map[string]string{
+		"title_zh": titleZH,
+		"title_en": titleEN,
+		"body":     body,
+		"url":      "/",
+	})
 	if err != nil {
 		return
 	}

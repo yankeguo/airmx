@@ -2,7 +2,10 @@
 <div class="card">
 {{if .PushKey}}
 <div class="push-bar">
-  <button id="push-toggle" class="btn" type="button" data-key="{{.PushKey}}">邮件通知</button>
+  <button id="push-toggle" class="btn" type="button"
+          data-key="{{.PushKey}}"
+          data-label-on="{{.T.PushOn}}" data-label-off="{{.T.PushOff}}"
+          data-err-denied="{{.T.PushErrDenied}}" data-err-failed="{{.T.PushErrFailed}}">{{.T.PushToggle}}</button>
 </div>
 <script src="/static/push.js" defer></script>
 {{end}}
@@ -10,12 +13,12 @@
 <div class="table-wrap">
 <table class="msg-table">
   <thead>
-    <tr><th>主题</th><th>发件人</th><th style="text-align:right">日期</th></tr>
+    <tr><th>{{.T.ColSubject}}</th><th>{{.T.ColFrom}}</th><th style="text-align:right">{{.T.ColDate}}</th></tr>
   </thead>
   <tbody>
   {{range .Messages}}
     <tr class="rowlink {{if .Unread}}unread{{end}}" data-href="/mail/{{.ID}}">
-      <td class="subject"><span class="dot {{if not .Unread}}read{{end}}"></span>{{if .Spam}}<span class="badge">垃圾</span>{{end}}<a href="/mail/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}</a></td>
+      <td class="subject"><span class="dot {{if not .Unread}}read{{end}}"></span>{{if .Spam}}<span class="badge">{{$.T.SpamBadge}}</span>{{end}}<a href="/mail/{{.ID}}">{{if .Subject}}{{.Subject}}{{else}}{{$.T.NoSubject}}{{end}}</a></td>
       <td class="from">{{.From}}</td>
       <td class="date">{{fdate .Date}}</td>
     </tr>
@@ -25,13 +28,13 @@
 </div>
 {{if gt .Pages 1}}
 <div class="pager">
-  {{if gt .Page 1}}<a href="/?p={{sub .Page 1}}">上一页</a>{{else}}<span class="disabled">上一页</span>{{end}}
-  <span class="info">第 {{.Page}} / {{.Pages}} 页 · 共 {{.Total}} 封</span>
-  {{if lt .Page .Pages}}<a href="/?p={{add .Page 1}}">下一页</a>{{else}}<span class="disabled">下一页</span>{{end}}
+  {{if gt .Page 1}}<a href="/?p={{sub .Page 1}}">{{.T.PrevPage}}</a>{{else}}<span class="disabled">{{.T.PrevPage}}</span>{{end}}
+  <span class="info">{{printf .T.PageInfo .Page .Pages .Total}}</span>
+  {{if lt .Page .Pages}}<a href="/?p={{add .Page 1}}">{{.T.NextPage}}</a>{{else}}<span class="disabled">{{.T.NextPage}}</span>{{end}}
 </div>
 {{end}}
 {{else}}
-<div class="empty">没有邮件</div>
+<div class="empty">{{.T.Empty}}</div>
 {{end}}
 </div>
 <script>

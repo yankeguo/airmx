@@ -1,11 +1,11 @@
 {{template "head" .}}
 <div class="card">
   <div class="meta">
-    <h2>{{if .Subject}}{{.Subject}}{{else}}(无主题){{end}}{{if .Spam}} <span class="badge">垃圾</span>{{end}}</h2>
+    <h2>{{if .Subject}}{{.Subject}}{{else}}{{.T.NoSubject}}{{end}}{{if .Spam}} <span class="badge">{{.T.SpamBadge}}</span>{{end}}</h2>
     <div class="sender">
       <div class="who">
         <div class="name">{{.From}}</div>
-        <div class="to">发给 {{.To}}</div>
+        <div class="to">{{.T.ToLabel}} {{.To}}</div>
       </div>
       <div class="when">{{.Date}}</div>
     </div>
@@ -14,14 +14,14 @@
   <div class="toolbar">
     {{if .HasHTML}}
     <div class="bodytabs" role="tablist">
-      <button type="button" class="active" data-target="text">纯文本</button>
+      <button type="button" class="active" data-target="text">{{.T.TabText}}</button>
       <button type="button" data-target="html">HTML</button>
     </div>
     {{end}}
     <span class="spacer"></span>
     <form method="post" action="/mail/{{.ID}}/delete"
-          onsubmit="return confirm('确定删除这封邮件?')">
-      <button class="btn btn-danger" type="submit">删除</button>
+          onsubmit="return confirm('{{.T.ConfirmDelete}}')">
+      <button class="btn btn-danger" type="submit">{{.T.Delete}}</button>
     </form>
   </div>
   {{if .HasHTML}}
@@ -35,10 +35,10 @@
   {{if .TextBody}}
   <pre id="mail-text" class="body">{{.TextBody}}</pre>
   {{else if .HasHTML}}
-  <pre id="mail-text" class="body">(无法提取纯文本内容)</pre>
+  <pre id="mail-text" class="body">{{.T.NoTextContent}}</pre>
   {{end}}
   {{if .Attach}}
-  <h3 class="section">附件</h3>
+  <h3 class="section">{{.T.Attachments}}</h3>
   <ul class="attach-list">
     {{range .Attach}}
     <li><a href="/mail/{{$.ID}}/attach/{{.N}}">{{.Filename}}<span class="type">{{.Type}}</span></a></li>
