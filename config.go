@@ -23,6 +23,7 @@ type Config struct {
 	SMTPListen string    `yaml:"smtp_listen"`
 	WebListen  string    `yaml:"web_listen"`
 	DataDir    string    `yaml:"data_dir"`
+	TLSCertDir string    `yaml:"tls_cert_dir"`
 	Recipients []string  `yaml:"recipients"`
 	Web        WebConfig `yaml:"web"`
 	Policy     Policy    `yaml:"policy"`
