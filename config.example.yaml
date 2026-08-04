@@ -34,6 +34,13 @@ web:
   username: admin
   # bcrypt hash; generate with `airmx hashpw <password>`
   password_bcrypt: "$2a$10$replace-me-with-output-of-hashpw"
+  # Optional: browser push notifications for new mail (Web Push). Generate
+  # the VAPID key pair with `airmx genpushkey`. The web UI must be served
+  # over HTTPS for push to work. Subscriptions are stored in
+  # <data_dir>/push_subscriptions.json.
+  # push:
+  #   vapid_public_key: "..."
+  #   vapid_private_key: "..."
 
 # Anti-spam policy. Each action is one of:
 #   reject - refuse the message with 554 after DATA

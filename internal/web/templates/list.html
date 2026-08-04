@@ -1,5 +1,11 @@
 {{template "head" .}}
 <div class="card">
+{{if .PushKey}}
+<div class="push-bar">
+  <button id="push-toggle" class="btn" type="button" data-key="{{.PushKey}}">邮件通知</button>
+</div>
+<script src="/static/push.js" defer></script>
+{{end}}
 {{if .Messages}}
 <div class="table-wrap">
 <table class="msg-table">

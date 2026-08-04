@@ -118,6 +118,23 @@ Note that Caddy stores certificates one level deeper
 accordingly — airmx expects the `.crt`/`.key` pair directly inside
 `tls_cert_dir`.
 
+## Web Push notifications (optional)
+
+The web UI can push a browser notification whenever a message is delivered,
+even when no tab is open (the browser's own push connection delivers it;
+iOS requires the page to be installed to the home screen). Setup:
+
+```sh
+./airmx genpushkey
+```
+
+Paste the printed key pair into `web.push` in your config, restart, open
+the web UI **over HTTPS** (push requires a secure context — use the reverse
+proxy setup above), and click 开启邮件通知 on the message list. Each
+browser you enable it on registers a subscription, stored in
+`<data_dir>/push_subscriptions.json`; dead endpoints are pruned
+automatically on the next delivery.
+
 ## Reverse proxy (optional)
 
 To serve the web UI over HTTPS, point your proxy at `web_listen`

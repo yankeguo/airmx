@@ -14,8 +14,16 @@ import (
 type Policy = mailauth.Policy
 
 type WebConfig struct {
-	Username       string `yaml:"username"`
-	PasswordBcrypt string `yaml:"password_bcrypt"`
+	Username       string      `yaml:"username"`
+	PasswordBcrypt string      `yaml:"password_bcrypt"`
+	Push           *PushConfig `yaml:"push"`
+}
+
+// PushConfig enables Web Push notifications for new mail. Generate the key
+// pair with `airmx genpushkey`.
+type PushConfig struct {
+	VapidPublicKey  string `yaml:"vapid_public_key"`
+	VapidPrivateKey string `yaml:"vapid_private_key"`
 }
 
 type Config struct {
@@ -76,6 +84,14 @@ func (c *Config) Validate() error {
 		errs = append(errs, errors.New("web.password_bcrypt is required"))
 	} else if _, err := bcrypt.Cost([]byte(c.Web.PasswordBcrypt)); err != nil {
 		errs = append(errs, fmt.Errorf("web.password_bcrypt is not a valid bcrypt hash: %v", err))
+	}
+	if c.Web.Push != nil {
+		if c.Web.Push.VapidPublicKey == "" {
+			errs = append(errs, errors.New("web.push.vapid_public_key is required"))
+		}
+		if c.Web.Push.VapidPrivateKey == "" {
+			errs = append(errs, errors.New("web.push.vapid_private_key is required"))
+		}
 	}
 	for name, a := range map[string]mailauth.Action{
 		"policy.spf_fail":     c.Policy.SPFFail,
