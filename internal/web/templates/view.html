@@ -1,27 +1,28 @@
 {{template "head" .}}
-<div class="card">
-  <div class="meta">
-    <h2>{{if .Subject}}{{.Subject}}{{else}}{{.T.NoSubject}}{{end}}{{if .Spam}} <span class="badge">{{.T.SpamBadge}}</span>{{end}}</h2>
-    <div class="sender">
-      <div class="who">
-        <div class="name">{{.From}}</div>
-        <div class="to">{{.T.ToLabel}} {{.To}}</div>
+<div class="card shadow-sm">
+  <div class="card-body">
+  <div class="mb-3">
+    <h2 class="h5 mb-3">{{if .Subject}}{{.Subject}}{{else}}{{.T.NoSubject}}{{end}}{{if .Spam}} <span class="badge text-bg-warning"><i class="bi bi-exclamation-triangle me-1"></i>{{.T.SpamBadge}}</span>{{end}}</h2>
+    <div class="d-flex align-items-center gap-3">
+      <div class="text-truncate">
+        <div class="fw-semibold text-truncate">{{.From}}</div>
+        <div class="text-secondary small">{{.T.ToLabel}} {{.To}}</div>
       </div>
-      <div class="when">{{.Date}}</div>
+      <div class="ms-auto flex-shrink-0 text-secondary small d-none d-sm-block">{{.Date}}</div>
     </div>
   </div>
-  <hr class="divider">
-  <div class="toolbar">
+  <hr>
+  <div class="d-flex align-items-center gap-2 mb-3">
     {{if .HasHTML}}
-    <div class="bodytabs" role="tablist">
-      <button type="button" class="active" data-target="text">{{.T.TabText}}</button>
-      <button type="button" data-target="html">HTML</button>
-    </div>
+    <ul class="nav nav-pills bodytabs" role="tablist">
+      <li class="nav-item"><button type="button" class="nav-link active" data-target="text"><i class="bi bi-card-text me-1"></i>{{.T.TabText}}</button></li>
+      <li class="nav-item"><button type="button" class="nav-link" data-target="html"><i class="bi bi-code-slash me-1"></i>HTML</button></li>
+    </ul>
     {{end}}
-    <span class="spacer"></span>
+    <span class="flex-grow-1"></span>
     <form method="post" action="/mail/{{.ID}}/delete"
           onsubmit="return confirm('{{.T.ConfirmDelete}}')">
-      <button class="btn btn-danger" type="submit">{{.T.Delete}}</button>
+      <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash me-1"></i>{{.T.Delete}}</button>
     </form>
   </div>
   {{if .HasHTML}}
@@ -38,13 +39,14 @@
   <pre id="mail-text" class="body">{{.T.NoTextContent}}</pre>
   {{end}}
   {{if .Attach}}
-  <h3 class="section">{{.T.Attachments}}</h3>
-  <ul class="attach-list">
+  <h3 class="h6 text-secondary text-uppercase small mt-4 mb-2">{{.T.Attachments}}</h3>
+  <ul class="list-group list-group-flush">
     {{range .Attach}}
-    <li><a href="/mail/{{$.ID}}/attach/{{.N}}">{{.Filename}}<span class="type">{{.Type}}</span></a></li>
+    <li class="list-group-item px-0"><a href="/mail/{{$.ID}}/attach/{{.N}}" class="text-decoration-none"><i class="bi bi-paperclip me-1"></i>{{.Filename}}<span class="text-secondary small ms-2">{{.Type}}</span></a></li>
     {{end}}
   </ul>
   {{end}}
+  </div>
 </div>
 <script>
 (function () {

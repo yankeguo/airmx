@@ -18,7 +18,9 @@
 
   function render(on) {
     btn.dataset.on = on ? "1" : "";
-    btn.textContent = on ? btn.dataset.labelOff : btn.dataset.labelOn;
+    btn.innerHTML =
+      '<i class="bi ' + (on ? "bi-bell-fill" : "bi-bell") + ' me-1"></i>' +
+      (on ? btn.dataset.labelOff : btn.dataset.labelOn);
   }
 
   function postJSON(url, body) {

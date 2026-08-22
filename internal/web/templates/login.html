@@ -4,19 +4,29 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{.T.LoginTitle}}</title>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
+      integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.13.1/font/bootstrap-icons.min.css" rel="stylesheet"
+      integrity="sha384-CK2SzKma4jA5H/MXDUU7i1TqZlCFaD4T01vtyDFvPlD97JQyS+IsSh1nI2EFbpyk" crossorigin="anonymous">
 <link rel="stylesheet" href="{{asset "/static/style.css"}}">
 </head>
-<body class="login-wrap">
-<div class="login-card">
-  <h1>{{.T.LoginHeading}}</h1>
-  {{if .Error}}<div class="error">{{.Error}}</div>{{end}}
-  <form method="post" action="/login">
-    <label for="username">{{.T.Username}}</label>
-    <input id="username" name="username" autocomplete="username" required autofocus>
-    <label for="password">{{.T.Password}}</label>
-    <input id="password" name="password" type="password" autocomplete="current-password" required>
-    <button type="submit">{{.T.SignIn}}</button>
-  </form>
+<body class="bg-body-tertiary d-flex align-items-center justify-content-center min-vh-100 p-3">
+<div class="card login-card shadow-sm">
+  <div class="card-body p-4">
+    <h1 class="h4 text-center mb-4"><i class="bi bi-envelope-at me-2"></i>{{.T.LoginHeading}}</h1>
+    {{if .Error}}<div class="alert alert-danger d-flex align-items-center py-2" role="alert"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{.Error}}</div>{{end}}
+    <form method="post" action="/login">
+      <div class="mb-3">
+        <label class="form-label" for="username">{{.T.Username}}</label>
+        <input class="form-control" id="username" name="username" autocomplete="username" required autofocus>
+      </div>
+      <div class="mb-3">
+        <label class="form-label" for="password">{{.T.Password}}</label>
+        <input class="form-control" id="password" name="password" type="password" autocomplete="current-password" required>
+      </div>
+      <button type="submit" class="btn btn-primary w-100"><i class="bi bi-box-arrow-in-right me-1"></i>{{.T.SignIn}}</button>
+    </form>
+  </div>
 </div>
 </body>
 </html>
