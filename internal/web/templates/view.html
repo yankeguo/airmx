@@ -1,12 +1,13 @@
 {{template "head" .}}
-<div class="card shadow-sm">
-  <div class="card-body">
+<div class="card card-amx">
+  <div class="card-body p-4">
   <div class="mb-3">
-    <h2 class="h5 mb-3">{{if .Subject}}{{.Subject}}{{else}}{{.T.NoSubject}}{{end}}{{if .Spam}} <span class="badge text-bg-warning"><i class="bi bi-exclamation-triangle me-1"></i>{{.T.SpamBadge}}</span>{{end}}</h2>
+    <h2 class="h5 mb-3">{{if .Subject}}{{.Subject}}{{else}}{{.T.NoSubject}}{{end}}{{if .Spam}} <span class="badge text-bg-warning spam-badge"><i class="bi bi-exclamation-triangle me-1"></i>{{.T.SpamBadge}}</span>{{end}}</h2>
     <div class="d-flex align-items-center gap-3">
+      <span class="avatar avatar-lg" style="--hue:{{hue .From}}" aria-hidden="true">{{initial .From}}</span>
       <div class="text-truncate">
         <div class="fw-semibold text-truncate">{{.From}}</div>
-        <div class="text-secondary small">{{.T.ToLabel}} {{.To}}</div>
+        <div class="text-secondary small text-truncate">{{.T.ToLabel}} {{.To}}</div>
       </div>
       <div class="ms-auto flex-shrink-0 text-secondary small d-none d-sm-block">{{.Date}}</div>
     </div>
@@ -22,7 +23,7 @@
     <span class="flex-grow-1"></span>
     <form method="post" action="/mail/{{.ID}}/delete"
           onsubmit="return confirm('{{.T.ConfirmDelete}}')">
-      <button class="btn btn-outline-danger btn-sm" type="submit"><i class="bi bi-trash me-1"></i>{{.T.Delete}}</button>
+      <button class="btn btn-outline-danger btn-sm btn-pill" type="submit"><i class="bi bi-trash me-1"></i>{{.T.Delete}}</button>
     </form>
   </div>
   {{if .HasHTML}}
@@ -40,9 +41,13 @@
   {{end}}
   {{if .Attach}}
   <h3 class="h6 text-secondary text-uppercase small mt-4 mb-2">{{.T.Attachments}}</h3>
-  <ul class="list-group list-group-flush">
+  <ul class="list-group list-group-flush attach-list">
     {{range .Attach}}
-    <li class="list-group-item px-0"><a href="/mail/{{$.ID}}/attach/{{.N}}" class="text-decoration-none"><i class="bi bi-paperclip me-1"></i>{{.Filename}}<span class="text-secondary small ms-2">{{.Type}}</span></a></li>
+    <li class="list-group-item px-0 d-flex align-items-center">
+      <i class="bi bi-paperclip me-2 text-secondary"></i>
+      <a href="/mail/{{$.ID}}/attach/{{.N}}" class="text-decoration-none text-truncate">{{.Filename}}</a>
+      <span class="text-secondary small ms-auto flex-shrink-0 ps-3">{{.Type}}{{if .Size}} · {{.Size}}{{end}}</span>
+    </li>
     {{end}}
   </ul>
   {{end}}

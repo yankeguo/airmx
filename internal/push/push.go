@@ -155,20 +155,29 @@ func (s *Service) Notify(titleZH, titleEN, body string) {
 	if err != nil {
 		return
 	}
+	// Send to all endpoints concurrently: each request is bounded by
+	// notifyTimeout, and a slow or dead push service must not delay the
+	// others.
+	var wg sync.WaitGroup
 	for _, sub := range subs {
-		ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
-		resp, err := webpush.SendNotificationWithContext(ctx, payload, sub, &s.vapidOptions)
-		cancel()
-		if err != nil {
-			log.Printf("push: send to %s failed: %v", sub.Endpoint, err)
-			continue
-		}
-		resp.Body.Close()
-		if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
-			log.Printf("push: endpoint gone, removing %s", sub.Endpoint)
-			_ = s.Unsubscribe(sub.Endpoint)
-		} else if resp.StatusCode >= 400 {
-			log.Printf("push: send to %s: status %d", sub.Endpoint, resp.StatusCode)
-		}
+		wg.Add(1)
+		go func(sub *webpush.Subscription) {
+			defer wg.Done()
+			ctx, cancel := context.WithTimeout(context.Background(), notifyTimeout)
+			resp, err := webpush.SendNotificationWithContext(ctx, payload, sub, &s.vapidOptions)
+			cancel()
+			if err != nil {
+				log.Printf("push: send to %s failed: %v", sub.Endpoint, err)
+				return
+			}
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusNotFound || resp.StatusCode == http.StatusGone {
+				log.Printf("push: endpoint gone, removing %s", sub.Endpoint)
+				_ = s.Unsubscribe(sub.Endpoint)
+			} else if resp.StatusCode >= 400 {
+				log.Printf("push: send to %s: status %d", sub.Endpoint, resp.StatusCode)
+			}
+		}(sub)
 	}
+	wg.Wait()
 }

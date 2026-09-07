@@ -123,14 +123,22 @@ func (s *Server) clearSessionCookie(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// requireAuth redirects unauthenticated requests to the login page.
+// requireAuth redirects unauthenticated page requests to the login page;
+// API requests get a plain 401 so fetch callers can detect it. Authenticated
+// responses are never stored by the browser cache, so logging out really
+// removes access (including via the back button).
 func (s *Server) requireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		c, err := r.Cookie(sessionCookieName)
 		if err != nil || !s.validSession(c.Value) {
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				http.Error(w, "unauthorized", http.StatusUnauthorized)
+				return
+			}
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
+		w.Header().Set("Cache-Control", "no-store")
 		next.ServeHTTP(w, r)
 	})
 }
