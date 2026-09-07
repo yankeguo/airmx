@@ -1,6 +1,7 @@
 package maildir
 
 import (
+	"net/mail"
 	"strings"
 	"testing"
 )
@@ -98,7 +99,11 @@ func TestEncodedWordFrom(t *testing.T) {
 		"Subject: x\r\n" +
 		"\r\nhi\r\n"
 	var m Message
-	fillHeaders(&m, []byte(raw))
+	msg, err := mail.ReadMessage(strings.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fillHeaders(&m, msg.Header)
 	if m.From != "Y.-K. Guo <hi@guoyk.com>" {
 		t.Fatalf("From = %q", m.From)
 	}
@@ -109,7 +114,11 @@ func TestGB2312EncodedHeaders(t *testing.T) {
 		"Subject: =?gb2312?B?suLK1NPKvP4=?=\r\n" +
 		"\r\nhi\r\n"
 	var m Message
-	fillHeaders(&m, []byte(raw))
+	msg, err := mail.ReadMessage(strings.NewReader(raw))
+	if err != nil {
+		t.Fatal(err)
+	}
+	fillHeaders(&m, msg.Header)
 	if m.Subject != "测试邮件" {
 		t.Fatalf("Subject = %q", m.Subject)
 	}

@@ -6,6 +6,7 @@ import (
 	"embed"
 	"encoding/json"
 	"fmt"
+	"hash/fnv"
 	"html/template"
 	"io"
 	"log"
@@ -15,6 +16,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	"github.com/emersion/go-message"
 	// Registers charset decoders (GB2312/GBK/Big5/...) into go-message's
@@ -38,7 +41,7 @@ type Server struct {
 	push         *push.Service // nil disables Web Push
 	swJS         []byte
 	tpl          *template.Template
-	mux          *http.ServeMux
+	mux          http.Handler
 }
 
 func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Service, assetVersion string) *Server {
@@ -54,10 +57,12 @@ func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Se
 		push:         pushSvc,
 		swJS:         must(staticFS.ReadFile("static/sw.js")),
 		tpl: template.Must(template.New("").Funcs(template.FuncMap{
-			"fdate": formatListDate,
-			"add":   func(a, b int) int { return a + b },
-			"sub":   func(a, b int) int { return a - b },
-			"asset": func(p string) string { return assetURL(assetVersion, p) },
+			"fdate":   formatListDate,
+			"add":     func(a, b int) int { return a + b },
+			"sub":     func(a, b int) int { return a - b },
+			"asset":   func(p string) string { return assetURL(assetVersion, p) },
+			"initial": avatarInitial,
+			"hue":     avatarHue,
 		}).ParseFS(templatesFS, "templates/*.html")),
 	}
 	mux := http.NewServeMux()
@@ -78,7 +83,7 @@ func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Se
 	mux.Handle("POST /mail/{id}/delete", s.requireAuth(http.HandlerFunc(s.handleDelete)))
 	mux.Handle("POST /api/push/subscribe", s.requireAuth(http.HandlerFunc(s.handlePushSubscribe)))
 	mux.Handle("POST /api/push/unsubscribe", s.requireAuth(http.HandlerFunc(s.handlePushUnsubscribe)))
-	s.mux = mux
+	s.mux = withSecurityHeaders(mux)
 	return s
 }
 
@@ -87,6 +92,20 @@ func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Se
 func (s *Server) ListenAndServe(addr string) error {
 	log.Printf("web: listening on %s", addr)
 	return http.ListenAndServe(addr, s.mux)
+}
+
+// withSecurityHeaders sets baseline hardening headers on every response.
+// The HTML-body endpoint overrides Content-Security-Policy itself, and
+// SAMEORIGIN framing must stay allowed for it (the view page embeds it in
+// an iframe).
+func withSecurityHeaders(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		h := w.Header()
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("X-Frame-Options", "SAMEORIGIN")
+		h.Set("Referrer-Policy", "same-origin")
+		next.ServeHTTP(w, r)
+	})
 }
 
 // withCache sets a long cache lifetime on embedded static assets: their
@@ -223,7 +242,10 @@ func walkMessage(raw []byte) (text, htmlBody string, attach []attachment) {
 			if filename == "" {
 				filename = fmt.Sprintf("part-%d", n)
 			}
-			attach = append(attach, attachment{N: n, Filename: filename, Type: mt})
+			// The decoded size is cheap to compute while walking and much
+			// more useful in the UI than the raw MIME size.
+			size, _ := io.Copy(io.Discard, part.Body)
+			attach = append(attach, attachment{N: n, Filename: filename, Type: mt, Size: humanSize(size)})
 			n++
 		}
 		return nil
@@ -262,12 +284,65 @@ func (s *Server) handleView(w http.ResponseWriter, r *http.Request) {
 		Subject:  decodeHeader(h.Get("Subject")),
 		From:     decodeHeader(h.Get("From")),
 		To:       decodeHeader(h.Get("To")),
-		Date:     h.Get("Date"),
+		Date:     formatFullDate(h.Get("Date")),
 		Spam:     strings.Contains(h.Get("X-Spam-Status"), "action=spam"),
 		TextBody: text,
 		HasHTML:  htmlBody != "",
 		Attach:   attach,
 	})
+}
+
+// formatFullDate renders a message Date header as "2006-01-02 15:04" in
+// local time; unparseable values are returned as-is.
+func formatFullDate(s string) string {
+	t, err := mail.ParseDate(s)
+	if err != nil {
+		return s
+	}
+	return t.Local().Format("2006-01-02 15:04")
+}
+
+// humanSize renders a byte count compactly, e.g. "512 B", "1.5 MB".
+func humanSize(n int64) string {
+	const unit = 1024
+	if n < unit {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(unit), 0
+	for v := n / unit; v >= unit; v /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
+}
+
+// avatarInitial returns the first letter of a display name or address for
+// the avatar chip: "Alice <a@b.c>" -> "A", "a@b.c" -> "A".
+func avatarInitial(from string) string {
+	if a, err := mail.ParseAddress(from); err == nil {
+		if a.Name != "" {
+			from = a.Name
+		} else {
+			from = a.Address
+		}
+	}
+	from = strings.TrimSpace(from)
+	if from == "" {
+		return "?"
+	}
+	r, _ := utf8.DecodeRuneInString(from)
+	return string(unicode.ToUpper(r))
+}
+
+// avatarHue maps an address to a deterministic hue (0-359) so each sender
+// gets a stable avatar color.
+func avatarHue(from string) int {
+	if a, err := mail.ParseAddress(from); err == nil && a.Address != "" {
+		from = a.Address
+	}
+	h := fnv.New32a()
+	h.Write([]byte(strings.ToLower(strings.TrimSpace(from))))
+	return int(h.Sum32() % 360)
 }
 
 // headerDecoder decodes RFC 2047 encoded-words in headers, including
@@ -332,8 +407,8 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 		http.NotFound(w, r)
 		return
 	}
-	var want int
-	if _, err := fmt.Sscanf(r.PathValue("n"), "%d", &want); err != nil {
+	want, err := strconv.Atoi(r.PathValue("n"))
+	if err != nil || want < 0 {
 		http.NotFound(w, r)
 		return
 	}
@@ -363,9 +438,11 @@ func (s *Server) handleAttach(w http.ResponseWriter, r *http.Request) {
 				filename = fmt.Sprintf("part-%d", n)
 			}
 			// Headers must be set inside the walk; body read after.
+			// FormatMediaType emits an RFC 2231 encoded filename when the
+			// name is not ASCII, unlike %q quoting.
 			w.Header().Set("Content-Type", mt)
 			w.Header().Set("Content-Disposition",
-				fmt.Sprintf("attachment; filename=%q", filename))
+				mime.FormatMediaType("attachment", map[string]string{"filename": filename}))
 			io.Copy(w, part.Body)
 		}
 		n++

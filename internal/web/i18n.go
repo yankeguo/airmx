@@ -49,12 +49,12 @@ type catalog struct {
 	ErrBadCredentials string
 
 	// message view
-	ToLabel        string
-	TabText        string
-	Delete         string
-	ConfirmDelete  string
-	NoTextContent  string
-	Attachments    string
+	ToLabel       string
+	TabText       string
+	Delete        string
+	ConfirmDelete string
+	NoTextContent string
+	Attachments   string
 }
 
 var catalogs = map[string]catalog{

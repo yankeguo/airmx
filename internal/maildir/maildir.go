@@ -85,6 +85,10 @@ func (s *Store) Deliver(recipient string, msg []byte) (string, error) {
 	return id, nil
 }
 
+// headerPeekBytes bounds how much of a message List reads to extract the
+// summary headers; bodies (and attachments) never need to be loaded.
+const headerPeekBytes = 64 << 10
+
 // List returns summaries of all messages across all recipients, newest
 // first.
 func (s *Store) List() ([]Message, error) {
@@ -114,8 +118,14 @@ func (s *Store) List() ([]Message, error) {
 					continue
 				}
 				m := Message{ID: e.Name(), Recipient: rec.Name(), Unread: sub.unread}
-				if raw, err := os.ReadFile(filepath.Join(base, sub.dir, e.Name())); err == nil {
-					fillHeaders(&m, raw)
+				if f, err := os.Open(filepath.Join(base, sub.dir, e.Name())); err == nil {
+					// ReadMessage stops consuming at the end of the header
+					// block; the limit only guards against pathological
+					// header sections. A truncated body is never read.
+					if msg, err := mail.ReadMessage(io.LimitReader(f, headerPeekBytes)); err == nil {
+						fillHeaders(&m, msg.Header)
+					}
+					f.Close()
 				}
 				msgs = append(msgs, m)
 			}
@@ -136,12 +146,7 @@ func decodeHeader(s string) string {
 	return s
 }
 
-func fillHeaders(m *Message, raw []byte) {
-	msg, err := mail.ReadMessage(strings.NewReader(string(raw)))
-	if err != nil {
-		return
-	}
-	h := msg.Header
+func fillHeaders(m *Message, h mail.Header) {
 	m.Subject = decodeHeader(h.Get("Subject"))
 	if addr, err := mail.ParseAddress(h.Get("From")); err == nil {
 		name := decodeHeader(addr.Name)

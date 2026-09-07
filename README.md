@@ -19,6 +19,7 @@ and serves a small web UI for reading and managing mail.
 - Web UI (Chinese and English, following the browser language with a manual
   switch in the nav) with a login page and encrypted cookie sessions
   (automatic `Secure` flag behind TLS-terminating proxies):
+  - light/dark theme following the system color scheme
   - unified message listing (inbox and spam merged) with unread markers and
     spam badges
   - plain-text-first viewing: messages without a text/plain part get one
