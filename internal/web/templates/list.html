@@ -1,38 +1,51 @@
 {{template "head" .}}
-<div class="card card-amx">
-  <div class="card-body">
-{{if .PushKey}}
-<div class="d-flex justify-content-end mb-3">
-  <button id="push-toggle" class="btn btn-outline-primary btn-sm btn-pill" type="button"
-          data-key="{{.PushKey}}"
-          data-label-on="{{.T.PushOn}}" data-label-off="{{.T.PushOff}}"
-          data-err-denied="{{.T.PushErrDenied}}" data-err-failed="{{.T.PushErrFailed}}">{{.T.PushToggle}}</button>
+<div class="page-head">
+  <div class="min-w-0">
+    <h1 class="page-title">{{.T.Inbox}}</h1>
+    <p class="page-count">{{printf .T.ListCount .Total}}</p>
+  </div>
+  {{if .PushKey}}
+  <div class="page-head-actions">
+    <button id="push-toggle" class="btn btn-outline-primary btn-sm btn-pill" type="button"
+            data-key="{{.PushKey}}"
+            data-label-on="{{.T.PushOn}}" data-label-off="{{.T.PushOff}}"
+            data-err-denied="{{.T.PushErrDenied}}" data-err-denied-hint="{{.T.PushErrDeniedHint}}"
+            data-err-failed="{{.T.PushErrFailed}}">{{.T.PushToggle}}</button>
+  </div>
+  <script src="{{asset "/static/push.js"}}" defer></script>
+  {{end}}
 </div>
-<script src="{{asset "/static/push.js"}}" defer></script>
-{{end}}
+<div class="card card-amx">
+  <div class="card-body p-0">
 {{if .Messages}}
 <div class="table-responsive">
-<table class="table table-hover align-middle msg-table">
+<table class="table table-hover align-middle msg-table mb-0">
   <thead>
-    <tr><th class="avatar-col"></th><th>{{.T.ColSubject}}</th><th class="d-none d-sm-table-cell">{{.T.ColFrom}}</th><th class="text-end">{{.T.ColDate}}</th></tr>
+    <tr><th class="avatar-col"></th><th>{{.T.ColSubject}}</th><th class="from-col d-none d-sm-table-cell">{{.T.ColFrom}}</th><th class="date-col text-end">{{.T.ColDate}}</th></tr>
   </thead>
   <tbody>
   {{range .Messages}}
     <tr class="rowlink {{if .Unread}}unread{{end}}" data-href="/mail/{{.ID}}" tabindex="0">
       <td class="avatar-col"><span class="avatar" style="--hue:{{hue .From}}" aria-hidden="true">{{initial .From}}</span></td>
-      <td class="subject"><span class="dot {{if not .Unread}}read{{end}}"></span>{{if .Spam}}<span class="badge text-bg-warning spam-badge"><i class="bi bi-exclamation-triangle me-1"></i>{{$.T.SpamBadge}}</span>{{end}}<a href="/mail/{{.ID}}" class="text-decoration-none">{{if .Subject}}{{.Subject}}{{else}}{{$.T.NoSubject}}{{end}}</a></td>
-      <td class="from d-none d-sm-table-cell">{{.From}}</td>
-      <td class="date text-end">{{fdate .Date}}</td>
+      <td class="subject">
+        <div class="subject-line">
+          <span class="dot {{if not .Unread}}read{{end}}"></span>
+          <span class="subject-text">{{if .Spam}}<span class="badge text-bg-warning spam-badge"><i class="bi bi-exclamation-triangle me-1"></i>{{$.T.SpamBadge}}</span>{{end}}<a href="/mail/{{.ID}}" class="text-decoration-none">{{if .Subject}}{{.Subject}}{{else}}{{$.T.NoSubject}}{{end}}</a></span>
+        </div>
+        <div class="from-sub d-sm-none">{{.From}}</div>
+      </td>
+      <td class="from from-col d-none d-sm-table-cell">{{.From}}</td>
+      <td class="date date-col text-end">{{fdate .Date}}</td>
     </tr>
   {{end}}
   </tbody>
 </table>
 </div>
 {{if gt .Pages 1}}
-<nav class="d-flex justify-content-center mt-3">
+<nav class="list-pager">
   <ul class="pagination pagination-sm mb-0">
     <li class="page-item {{if not (gt .Page 1)}}disabled{{end}}"><a class="page-link"{{if gt .Page 1}} href="/?p={{sub .Page 1}}"{{end}}><i class="bi bi-chevron-left me-1"></i>{{.T.PrevPage}}</a></li>
-    <li class="page-item disabled"><span class="page-link text-secondary">{{printf .T.PageInfo .Page .Pages .Total}}</span></li>
+    <li class="page-item disabled"><span class="page-link">{{printf .T.PageInfo .Page .Pages .Total}}</span></li>
     <li class="page-item {{if not (lt .Page .Pages)}}disabled{{end}}"><a class="page-link"{{if lt .Page .Pages}} href="/?p={{add .Page 1}}"{{end}}>{{.T.NextPage}}<i class="bi bi-chevron-right ms-1"></i></a></li>
   </ul>
 </nav>

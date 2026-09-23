@@ -35,7 +35,7 @@
         <a class="nav-link" href="/lang?set={{if eq .T.Lang "zh"}}en{{else}}zh{{end}}"><i class="bi bi-translate me-1"></i>{{.T.LangSwitch}}</a>
       </li>
       <li class="nav-item">
-        <a class="nav-link" href="/logout"><i class="bi bi-box-arrow-right me-1"></i>{{.T.Logout}}</a>
+        <a class="nav-link" href="/logout" aria-label="{{.T.Logout}}"><i class="bi bi-box-arrow-right"></i><span class="d-none d-sm-inline ms-1">{{.T.Logout}}</span></a>
       </li>
     </ul>
   </div>
@@ -45,6 +45,19 @@
 
 {{define "foot"}}
 </main>
+<div id="amx-modal" class="amx-modal" hidden data-ok="{{.T.ModalOK}}" data-cancel="{{.T.ModalCancel}}">
+  <div class="amx-modal-backdrop" data-amx-dismiss></div>
+  <div class="amx-modal-dialog" role="dialog" aria-modal="true" aria-labelledby="amx-modal-title" aria-describedby="amx-modal-body">
+    <div class="amx-modal-mark" id="amx-modal-mark" aria-hidden="true"></div>
+    <h2 class="amx-modal-title" id="amx-modal-title"></h2>
+    <p class="amx-modal-body" id="amx-modal-body"></p>
+    <div class="amx-modal-actions">
+      <button type="button" class="btn btn-light" id="amx-modal-cancel"></button>
+      <button type="button" class="btn btn-primary" id="amx-modal-ok"></button>
+    </div>
+  </div>
+</div>
+<script src="{{asset "/static/modal.js"}}"></script>
 </body>
 </html>
 {{end}}

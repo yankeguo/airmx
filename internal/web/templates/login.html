@@ -3,6 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" media="(prefers-color-scheme: light)" content="#f8f9fa">
+<meta name="theme-color" media="(prefers-color-scheme: dark)" content="#212529">
 <title>{{.T.LoginTitle}}</title>
 <link rel="icon" type="image/svg+xml" href="{{asset "/static/favicon.svg"}}">
 <script>
@@ -25,20 +27,43 @@
     <div class="text-center mb-4">
       <span class="login-logo mb-3"><i class="bi bi-envelope-at"></i></span>
       <h1 class="h4 fw-bold mb-1">{{.T.LoginHeading}}</h1>
+      <p class="text-secondary mb-0">{{.T.LoginHint}}</p>
     </div>
-    {{if .Error}}<div class="alert alert-danger d-flex align-items-center py-2" role="alert"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{.Error}}</div>{{end}}
+    {{if .Error}}<div class="alert alert-danger d-flex align-items-center py-2 login-alert" role="alert"><i class="bi bi-exclamation-triangle-fill me-2"></i>{{.Error}}</div>{{end}}
     <form method="post" action="/login">
       <div class="mb-3">
         <label class="form-label" for="username">{{.T.Username}}</label>
-        <input class="form-control form-control-lg" id="username" name="username" autocomplete="username" required autofocus>
+        <div class="input-affix">
+          <i class="bi bi-person" aria-hidden="true"></i>
+          <input class="form-control form-control-lg" id="username" name="username" autocomplete="username" required autofocus>
+        </div>
       </div>
       <div class="mb-4">
         <label class="form-label" for="password">{{.T.Password}}</label>
-        <input class="form-control form-control-lg" id="password" name="password" type="password" autocomplete="current-password" required>
+        <div class="input-affix">
+          <i class="bi bi-key" aria-hidden="true"></i>
+          <input class="form-control form-control-lg has-trail" id="password" name="password" type="password" autocomplete="current-password" required>
+          <button type="button" class="trail" id="pw-toggle" aria-label="{{.T.ShowPassword}}" data-show="{{.T.ShowPassword}}" data-hide="{{.T.HidePassword}}">
+            <i class="bi bi-eye" aria-hidden="true"></i>
+          </button>
+        </div>
       </div>
       <button type="submit" class="btn btn-primary btn-lg w-100"><i class="bi bi-box-arrow-in-right me-1"></i>{{.T.SignIn}}</button>
     </form>
   </div>
 </div>
+<script>
+(function () {
+  var btn = document.getElementById("pw-toggle");
+  var input = document.getElementById("password");
+  if (!btn || !input) return;
+  btn.addEventListener("click", function () {
+    var show = input.type === "password";
+    input.type = show ? "text" : "password";
+    btn.setAttribute("aria-label", show ? btn.dataset.hide : btn.dataset.show);
+    btn.querySelector("i").className = "bi " + (show ? "bi-eye-slash" : "bi-eye");
+  });
+})();
+</script>
 </body>
 </html>
