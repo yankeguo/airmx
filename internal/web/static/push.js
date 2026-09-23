@@ -76,7 +76,12 @@
         render(!!sub);
       })
       .catch(function (err) {
-        alert(btn.dataset.errFailed + ": " + (err && err.message ? err.message : err));
+        var msg = err && err.message ? String(err.message) : String(err);
+        var denied = msg === btn.dataset.errDenied;
+        window.airmxAlert({
+          title: denied ? btn.dataset.errDenied : btn.dataset.errFailed,
+          body: denied ? btn.dataset.errDeniedHint : msg,
+        });
       })
       .finally(function () {
         btn.disabled = false;

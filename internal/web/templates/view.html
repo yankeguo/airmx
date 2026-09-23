@@ -1,31 +1,36 @@
 {{template "head" .}}
 <div class="card card-amx">
   <div class="card-body p-4">
-  <div class="mb-3">
-    <h2 class="h5 mb-3">{{if .Subject}}{{.Subject}}{{else}}{{.T.NoSubject}}{{end}}{{if .Spam}} <span class="badge text-bg-warning spam-badge"><i class="bi bi-exclamation-triangle me-1"></i>{{.T.SpamBadge}}</span>{{end}}</h2>
-    <div class="d-flex align-items-center gap-3">
-      <span class="avatar avatar-lg" style="--hue:{{hue .From}}" aria-hidden="true">{{initial .From}}</span>
-      <div class="text-truncate">
-        <div class="fw-semibold text-truncate">{{.From}}</div>
-        <div class="text-secondary small text-truncate">{{.T.ToLabel}} {{.To}}</div>
-      </div>
-      <div class="ms-auto flex-shrink-0 text-secondary small d-none d-sm-block">{{.Date}}</div>
-    </div>
+  <div class="mail-toolbar">
+    <a class="btn btn-light btn-sm btn-pill btn-icon" href="/" aria-label="{{.T.Back}}"><i class="bi bi-arrow-left"></i><span class="d-none d-sm-inline">{{.T.Back}}</span></a>
+    <span class="flex-grow-1"></span>
+    <form method="post" action="/mail/{{.ID}}/delete"
+          data-confirm="{{.T.ConfirmDelete}}"
+          data-confirm-title="{{.T.ConfirmDeleteTitle}}"
+          data-confirm-ok="{{.T.Delete}}"
+          data-confirm-danger>
+      <button class="btn btn-outline-danger btn-sm btn-pill btn-icon" type="submit"><i class="bi bi-trash"></i><span class="d-none d-sm-inline">{{.T.Delete}}</span></button>
+    </form>
   </div>
-  <hr>
-  <div class="d-flex align-items-center gap-2 mb-3">
-    {{if .HasHTML}}
+  <header class="mail-head">
+    <h1 class="mail-subject">{{if .Subject}}{{.Subject}}{{else}}{{.T.NoSubject}}{{end}}{{if .Spam}} <span class="badge text-bg-warning spam-badge"><i class="bi bi-exclamation-triangle me-1"></i>{{.T.SpamBadge}}</span>{{end}}</h1>
+    <div class="mail-person">
+      <span class="avatar avatar-lg" style="--hue:{{hue .From}}" aria-hidden="true">{{initial .From}}</span>
+      <div class="min-w-0">
+        <div class="mail-from">{{.From}}</div>
+        <div class="mail-to">{{.T.ToLabel}} {{.To}}</div>
+      </div>
+      <div class="mail-date">{{.Date}}</div>
+    </div>
+  </header>
+  {{if .HasHTML}}
+  <div class="mail-bodybar">
     <ul class="nav nav-pills bodytabs" role="tablist">
       <li class="nav-item"><button type="button" class="nav-link active" data-target="text"><i class="bi bi-card-text me-1"></i>{{.T.TabText}}</button></li>
       <li class="nav-item"><button type="button" class="nav-link" data-target="html"><i class="bi bi-code-slash me-1"></i>HTML</button></li>
     </ul>
-    {{end}}
-    <span class="flex-grow-1"></span>
-    <form method="post" action="/mail/{{.ID}}/delete"
-          onsubmit="return confirm('{{.T.ConfirmDelete}}')">
-      <button class="btn btn-outline-danger btn-sm btn-pill" type="submit"><i class="bi bi-trash me-1"></i>{{.T.Delete}}</button>
-    </form>
   </div>
+  {{end}}
   {{if .HasHTML}}
   <!-- data-src + lazy src assignment: the HTML body (and its remote images,
        i.e. tracking pixels) is only fetched after the user explicitly
@@ -40,16 +45,19 @@
   <pre id="mail-text" class="body">{{.T.NoTextContent}}</pre>
   {{end}}
   {{if .Attach}}
-  <h3 class="h6 text-secondary text-uppercase small mt-4 mb-2">{{.T.Attachments}}</h3>
-  <ul class="list-group list-group-flush attach-list">
+  <h2 class="attach-heading">{{.T.Attachments}}</h2>
+  <div class="attach-grid">
     {{range .Attach}}
-    <li class="list-group-item px-0 d-flex align-items-center">
-      <i class="bi bi-paperclip me-2 text-secondary"></i>
-      <a href="/mail/{{$.ID}}/attach/{{.N}}" class="text-decoration-none text-truncate">{{.Filename}}</a>
-      <span class="text-secondary small ms-auto flex-shrink-0 ps-3">{{.Type}}{{if .Size}} · {{.Size}}{{end}}</span>
-    </li>
+    <a class="attach-item" href="/mail/{{$.ID}}/attach/{{.N}}">
+      <span class="attach-icon" aria-hidden="true"><i class="bi {{fileicon .Type}}"></i></span>
+      <span class="attach-main">
+        <span class="attach-name">{{.Filename}}</span>
+        <span class="attach-meta">{{.Type}}{{if .Size}} · {{.Size}}{{end}}</span>
+      </span>
+      <i class="bi bi-download attach-dl" aria-hidden="true"></i>
+    </a>
     {{end}}
-  </ul>
+  </div>
   {{end}}
   </div>
 </div>

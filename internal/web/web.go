@@ -57,12 +57,13 @@ func New(store *maildir.Store, username, passwordBcrypt string, pushSvc *push.Se
 		push:         pushSvc,
 		swJS:         must(staticFS.ReadFile("static/sw.js")),
 		tpl: template.Must(template.New("").Funcs(template.FuncMap{
-			"fdate":   formatListDate,
-			"add":     func(a, b int) int { return a + b },
-			"sub":     func(a, b int) int { return a - b },
-			"asset":   func(p string) string { return assetURL(assetVersion, p) },
-			"initial": avatarInitial,
-			"hue":     avatarHue,
+			"fdate":    formatListDate,
+			"add":      func(a, b int) int { return a + b },
+			"sub":      func(a, b int) int { return a - b },
+			"asset":    func(p string) string { return assetURL(assetVersion, p) },
+			"initial":  avatarInitial,
+			"hue":      avatarHue,
+			"fileicon": fileIcon,
 		}).ParseFS(templatesFS, "templates/*.html")),
 	}
 	mux := http.NewServeMux()
@@ -332,6 +333,27 @@ func avatarInitial(from string) string {
 	}
 	r, _ := utf8.DecodeRuneInString(from)
 	return string(unicode.ToUpper(r))
+}
+
+// fileIcon picks a Bootstrap Icons class for an attachment MIME type.
+func fileIcon(mt string) string {
+	mt = strings.ToLower(mt)
+	switch {
+	case strings.HasPrefix(mt, "image/"):
+		return "bi-file-earmark-image"
+	case strings.HasPrefix(mt, "video/"):
+		return "bi-file-earmark-play"
+	case strings.HasPrefix(mt, "audio/"):
+		return "bi-file-earmark-music"
+	case mt == "application/pdf" || strings.HasSuffix(mt, "/pdf"):
+		return "bi-file-earmark-pdf"
+	case strings.Contains(mt, "zip") || strings.Contains(mt, "compressed") || strings.Contains(mt, "tar"):
+		return "bi-file-earmark-zip"
+	case strings.HasPrefix(mt, "text/") || strings.Contains(mt, "json") || strings.Contains(mt, "xml"):
+		return "bi-file-earmark-text"
+	default:
+		return "bi-file-earmark"
+	}
 }
 
 // avatarHue maps an address to a deterministic hue (0-359) so each sender
