@@ -1,5 +1,56 @@
-# Push to main (the default branch): test, then publish :latest.
-# No commit-SHA tag and no branch tag.
+# Push to main, which is this repo's default branch.
+#
+# Runs test.yml, then docker-publish.yml. docker-publish.yml is a separate
+# reusable workflow so the tag rules are not copied into release.yml; the
+# two publish entry points must not drift.
+#
+# This file does not run on pull requests or on other branches. Those only
+# run tests (test.yml). It does not run on tags either; release.yml is the
+# tag entry point and calls the same publish workflow. A tag pointing at
+# main therefore does not publish :latest by itself. :latest moves when the
+# branch main moves. Shipping a release tag and updating main are two
+# pushes and two intended results.
+#
+# Trigger is the literal branch name `main`, not "whatever the default
+# branch is". GitHub evaluates `on.push.branches` before the event payload
+# exists, so github.event.repository.default_branch cannot be used in the
+# trigger. Running on every branch and skipping with an `if` was rejected:
+# the workflow would still be scheduled for feature branches. The second
+# guard is inside docker-publish.yml (`enable={{is_default_branch}}`). If
+# main is no longer the default branch, that expression is false, no tag is
+# produced, and the publish workflow fails on purpose instead of pushing
+# :latest from a non-default branch.
+#
+# No commit-SHA tag and no per-branch tag. The previous single workflow
+# used type=sha and type=ref,event=branch on every push. Those were removed
+# because main publishes only :latest, and tags publish only semver.
+#
+# Permissions
+# -----------
+# The workflow-level block is the ceiling. A job cannot grant a permission
+# the workflow omitted, and a reusable workflow cannot exceed the caller's
+# grant. So this file lists every permission either job needs, and each job
+# narrows to what that job actually uses.
+#
+#   test job      contents: read
+#   publish job   contents: read, packages: write, id-token: write,
+#                 attestations: write
+#
+# packages: write is the GHCR push. id-token and attestations are required
+# because docker/build-push-action provenance attestations are on by
+# default. Dropping those two permissions fails the push at attestation
+# time, not at image build time.
+#
+# Concurrency
+# -----------
+# cancel-in-progress: a newer commit on main should replace an in-progress
+# :latest build. The group is `docker-<ref>`, deliberately not the same
+# string as test.yml's `airmx-test-<ref>`. See test.yml for the deadlock
+# that shared groups cause between a caller and a workflow_call callee.
+#
+# There is no workflow_dispatch. A manual run would republish :latest from
+# whatever ref the dispatch used, which is easy to fire against the wrong
+# commit.
 
 name: docker
 
@@ -19,6 +70,9 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Job-level permissions replace the workflow-level set for this job; they
+  # do not merge. Repeat contents: read even though the workflow already has
+  # it, and do not inherit packages: write into the test job.
   test:
     permissions:
       contents: read

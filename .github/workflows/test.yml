@@ -1,7 +1,84 @@
-# Tests for pull requests and pushes to any branch except main.
-# Pushes to main run this same workflow via workflow_call from docker.yml,
-# and semver tags run it from release.yml, so publish jobs cannot start on
-# a failing test suite.
+# Test workflow. Also the single definition of `go test ./...` for the
+# publish workflows, via workflow_call.
+#
+# How the four workflows divide events
+# ------------------------------------
+# test.yml          pull_request, and push to any branch except main
+# docker.yml        push to main: this workflow, then docker-publish.yml
+# release.yml       push of a v* semver tag: this workflow, then
+#                   docker-publish.yml, then binaries and a GitHub Release
+# docker-publish.yml  workflow_call only; image tags live in one place
+#
+# main is branches-ignore'd here on purpose. A push to main already runs
+# docker.yml, which calls this file before it publishes. Listing main here
+# too would run the suite twice on every default-branch push. Tag pushes do
+# not match `on.push.branches` (a tag ref is not a branch), so they do not
+# start this file directly; release.yml calls it. Net: one test run per
+# event, and a failing suite cannot publish.
+#
+# workflow_run was rejected as the way to gate publish on this workflow.
+# workflow_run reads the workflow file from the default branch only, the
+# checkout SHA is github.event.workflow_run.head_sha rather than github.sha,
+# and the token permissions are awkward. Calling this file with workflow_call
+# keeps the gate in the same run as the publish.
+#
+# `on.workflow_call` filters are not applied when another workflow calls this
+# file. branches-ignore does not block docker.yml or release.yml.
+#
+# Pull requests into any base branch are tested, not only PRs into main.
+# There is no paths filter: this repo is small and a change under internal/
+# or a workflow edit can both affect what ships.
+#
+# Permissions
+# -----------
+# contents: read is enough to check out the repo and run tests. Publish
+# permissions are not granted here. A reusable workflow can only narrow the
+# caller's GITHUB_TOKEN permissions, never widen them, so docker.yml and
+# release.yml must grant contents: read on the job that calls this file.
+# secrets.GITHUB_TOKEN is already available inside a called workflow;
+# secrets: inherit is not required.
+#
+# Concurrency
+# -----------
+# cancel-in-progress drops a stale run when a new commit lands on the same
+# ref (a PR synchronize, or another push to the same branch).
+#
+# The group name is a hardcoded prefix plus the ref. Do not use
+# github.workflow in a reusable workflow's concurrency group. Inside
+# workflow_call that context is the CALLER's workflow name. If the resulting
+# string equals the caller's own concurrency group, GitHub cancels the run
+# with "deadlock for concurrency group ... between top level workflow and
+# ...". The caller's groups are `docker-<ref>` and `release-<ref>`, so
+# `airmx-test-<ref>` does not collide.
+#
+# A called workflow's concurrency applies to the caller run, which then
+# occupies both groups. That is wanted for main: a newer push cancels the
+# in-progress docker run. It has a side effect for tags: release.yml sets
+# cancel-in-progress false, but this file sets it true, so force-pushing the
+# same tag can still cancel the in-progress release via this group. Normal
+# tag pushes use a unique ref and do not collide.
+#
+# What the suite is
+# -----------------
+# `go test ./...` with the race detector left off. internal/push
+# TestNotifyDeliversAndPrunes already fails under -race (a data race in
+# webpush-go's send buffer, and the test handler's unsynchronized counter).
+# Turning on -race would make CI red without a product change. Add -race
+# only after that test is synchronized.
+# golangci-lint and go vet are not separate steps. The requested CI is the
+# test suite.
+#
+# Tooling
+# -------
+# actions/checkout@v7 and actions/setup-go@v7 are the Node 24 majors. On
+# 2026-09-23 GitHub removed Node 20 from hosted runners, so older majors of
+# these actions no longer run. Majors are floating on purpose (the previous
+# workflow used floating majors, and patch releases of an action should
+# apply). Full commit SHAs were not pinned.
+# go-version-file: go.mod reads the `go` line (currently 1.26.x) so the
+# toolchain is not pinned a second time in YAML. Module and build caching
+# stay at setup-go's default, which is on.
+# timeout-minutes: 15 bounds a hung test. The suite itself is seconds.
 
 name: test
 
@@ -15,8 +92,8 @@ on:
 permissions:
   contents: read
 
-# Hardcoded prefix: github.workflow inside workflow_call is the caller name,
-# and sharing that group with the caller deadlocks the run.
+# See the concurrency notes in the header. The prefix must stay distinct
+# from the docker.yml and release.yml groups.
 concurrency:
   group: airmx-test-${{ github.ref }}
   cancel-in-progress: true

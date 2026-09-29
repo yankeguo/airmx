@@ -1,13 +1,122 @@
-# Publish ghcr.io/<repo> for the calling workflow's git ref.
+# Publish ghcr.io/<owner>/<repo> for whichever ref called this workflow.
+# Called by docker.yml (push to main) and release.yml (semver tag).
+# Not triggered on its own: a workflow_call-only file does not appear as a
+# separate button in the Actions tab.
 #
-#   push to the default branch (main):  :latest
-#   tag v1.2.3:                          :1.2.3 :1.2 :1
-#   tag v1.2.3-rc.1 (any pre-release):   :1.2.3-rc.1
-#   tag v0.2.0:                          :0.2.0 :0.2          (not :0)
-#   tag v0.0.1:                          :0.0.1               (not :0 or :0.0)
+# Tag policy (keep the README "Continuous integration" table in sync)
+# --------------------------------------------------------------------
+#   push to the default branch     :latest
+#   tag v1.2.3                      :1.2.3  :1.2  :1
+#   tag v1.2.3-rc.1 (any pre-release, including -rc, -beta, -alpha,
+#                    -rc1, -beta.2, -alpha.1)
+#                                   :1.2.3-rc.1
+#   tag v0.2.0                      :0.2.0  :0.2
+#   tag v0.0.1                      :0.0.1
 #
-# The leading "v" is removed. Commit SHAs are not used as tags.
-# flavor latest=false: semver events would otherwise also move :latest.
+# The leading "v" is stripped by metadata-action's {{version}} expression.
+# That expression keeps a pre-release suffix, so v1.2.3-rc.1 becomes the
+# image tag 1.2.3-rc.1 rather than 1.2.3.
+#
+# :latest tracks the default branch only. A release tag must not move it,
+# including a stable v1.2.3 and a pre-release. Two settings together do that:
+#
+#   flavor latest=false
+#     The default flavor is latest=auto, and auto ADDS :latest for
+#     type=semver (and for type=ref,event=tag, type=pep440, type=match).
+#     Leaving the default on would retag :latest on every semver push.
+#     auto does NOT add :latest just because the event is a branch push,
+#     so latest=false alone would also stop main from publishing :latest.
+#
+#   type=raw,value=latest,enable={{is_default_branch}}
+#     This is the explicit :latest. {{is_default_branch}} is a
+#     metadata-action Handlebars expression, evaluated by the action.
+#     It is true for a push to the repo's default branch and false for a
+#     tag event, so a tag push does not take this raw tag either.
+#     GitHub's ${{ }} expressions and the action's {{ }} expressions are
+#     different languages. Both appear in `tags:` below on purpose.
+#
+# Floating channels and leading zeros
+# -----------------------------------
+# {{major}}.{{minor}} and {{major}} are moving channels (1.2 and 1).
+# They are omitted when the channel itself would be only a leading zero:
+#
+#   v0.2.0   major channel would be "0"     -> disabled
+#            minor channel is "0.2"         -> kept
+#   v0.0.1   major channel would be "0"     -> disabled
+#            minor channel would be "0.0"   -> disabled
+#            the full version 0.0.1 remains, from {{version}}
+#   v0.10.0  ref is refs/tags/v0.10.0, which does not have the prefix
+#            refs/tags/v0.0. so the minor channel 0.10 is kept
+#
+# The enable flags are the pattern from metadata-action's "Major version
+# zero" note (semver 0.y.z is unstable, so the Docker tag "0" should not
+# exist), extended one level to "0.0". The GitHub expressions are
+# evaluated before the action sees the input, and the action expects the
+# literal strings true or false.
+#
+#   enable=${{ !startsWith(github.ref, 'refs/tags/v0.') }}
+#   enable=${{ !startsWith(github.ref, 'refs/tags/v0.0.') }}
+#
+# The prefix includes the "v" because this repo's tags are v-prefixed
+# (release.yml's filter rejects a bare 0.1.2). On a branch push the ref is
+# refs/heads/main, both enables are true, and that is harmless: type=semver
+# emits nothing unless the event is a tag.
+#
+# Pre-release tags do not move the floating channels for a second reason.
+# metadata-action, given a pre-release, does not render {{major}} as "1".
+# It renders the full pre-release string (1.2.3-rc.1) and then dedupes that
+# with the {{version}} tag. The result is a single image tag, the full
+# version. Disabling the zero channels is still required for stable 0.x
+# versions, where major/minor really would be "0" and "0.0".
+#
+# No type=sha and no type=ref. Commit SHAs and branch names are not image
+# tags. The previous workflow published both on every push.
+#
+# Image revision stamped into the binary
+# --------------------------------------
+# main.assetVersion is the cache-bust query on static asset URLs.
+#   tag build    the version with "v" removed (1.2.3-rc.1), so a release
+#                has a stable asset URL
+#   branch build the full commit SHA, same value the previous workflow
+#                passed as the REVISION build-arg
+# A short SHA was not used: the full SHA cannot collide, and main has no
+# version number to stamp instead. .git is in .dockerignore, so the SHA
+# cannot be read inside the image build; it has to arrive as a build-arg.
+#
+# Build
+# -----
+# Platforms are linux/amd64 and linux/arm64 only. The image is Alpine.
+# macOS and Windows binaries are release archives, not images.
+# setup-qemu-action runs before buildx. Hosted runners are amd64 and cannot
+# execute arm64 without binfmt; the previous workflow omitted QEMU, so the
+# arm64 half of a multi-arch build was not reliable. Step order is checkout,
+# qemu, buildx, login, metadata, then build.
+#
+# Login is ghcr.io with github.actor and secrets.GITHUB_TOKEN, unchanged
+# from the previous workflow. metadata-action lowercases the image name;
+# ghcr.io/${{ github.repository }} is already lowercase for this repo.
+#
+# Provenance attestations stay at build-push-action's default (on). That is
+# why the caller must grant id-token: write and attestations: write. SBOM
+# generation is left off; it was not requested and it adds build time.
+# labels and annotations are both passed through so the registry record
+# matches the metadata action's OCI output.
+#
+# Cache scope is the fixed string "airmx". The default gha scope is the git
+# ref, which means a tag build would never read main's cache and would write
+# a cache nobody reuses. One shared scope lets tag builds reuse main's
+# layers. A main push and a tag push can write that cache at the same time;
+# last write wins, which is acceptable for a layer cache.
+#
+# The "Require image tags" step runs before the push. If metadata-action
+# emits an empty tag list (a tag shape it cannot parse, or a branch that is
+# not the default), build-push-action either errors opaquely or pushes an
+# untagged manifest. The tags are passed in via the environment rather than
+# interpolated into the script, so a multiline tag list is not shell-quoted
+# by accident. The step prints the tags so the log shows what was pushed.
+#
+# timeout-minutes: 45. The arm64 leg runs under QEMU and is the slow part.
+# Test and release jobs use shorter limits.
 
 name: docker-publish
 
@@ -28,6 +137,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # Tag -> version without v. Branch -> full SHA. See header.
       - name: Image revision
         id: rev
         run: |
@@ -38,6 +148,7 @@ jobs:
             printf 'value=%s\n' "${GITHUB_SHA}" >> "${GITHUB_OUTPUT}"
           fi
 
+      # QEMU before Buildx, or linux/arm64 on an amd64 runner has no binfmt.
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v4
 
@@ -51,6 +162,14 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # Majors are the Node 24 line: metadata-action v5 and build-push v6
+      # predate the Node 20 removal (2026-09-23). See test.yml for why majors
+      # float instead of being pinned to a commit SHA.
+      #
+      # latest=false plus the raw tag, the semver patterns, and the two
+      # enable flags are the whole tag policy. The header explains each one;
+      # do not "simplify" latest back to auto, and do not drop the v0 / v0.0
+      # enables.
       - name: Docker metadata
         id: meta
         uses: docker/metadata-action@v6
