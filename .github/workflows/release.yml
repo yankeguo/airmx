@@ -1,0 +1,170 @@
+# Push of a semver tag, including pre-release suffixes:
+#   v1.2.3
+#   v1.2.3-rc.1
+#   v1.2.3-rc1
+#   v1.2.3-alpha.1
+#   v1.2.3-beta.2
+#
+# Runs tests, publishes the semver image tags, and opens a GitHub Release
+# with binaries for mainstream OS/arch pairs. A hyphenated pre-release is
+# marked as a GitHub pre-release and is not made the latest release.
+
+name: release
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "v[0-9]+.[0-9]+.[0-9]+-*"
+
+permissions:
+  contents: write
+  packages: write
+  attestations: write
+  id-token: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.meta.outputs.version }}
+      prerelease: ${{ steps.meta.outputs.prerelease }}
+    steps:
+      - name: Validate semver tag
+        id: meta
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          ver="${TAG#v}"
+          # semver core, optional pre-release. Numeric identifiers cannot have
+          # leading zeros. Pre-release identifiers: rc, rc.1, alpha, beta.2, …
+          semver='^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-((0|[1-9][0-9]*)|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(\.((0|[1-9][0-9]*)|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*)?$'
+          if [ "${TAG}" = "${ver}" ] || ! printf '%s\n' "${ver}" | grep -Eq "${semver}"; then
+            echo "::error::${TAG} is not a supported semver tag (example: v1.2.3 or v1.2.3-rc.1)"
+            exit 1
+          fi
+          pre=false
+          case "${ver}" in
+            *-*) pre=true ;;
+          esac
+          printf 'version=%s\n' "${ver}" >> "${GITHUB_OUTPUT}"
+          printf 'prerelease=%s\n' "${pre}" >> "${GITHUB_OUTPUT}"
+
+  test:
+    needs: version
+    permissions:
+      contents: read
+    uses: ./.github/workflows/test.yml
+
+  docker:
+    needs: test
+    permissions:
+      contents: read
+      packages: write
+      attestations: write
+      id-token: write
+    uses: ./.github/workflows/docker-publish.yml
+
+  binaries:
+    needs: [version, test]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    strategy:
+      matrix:
+        include:
+          - os: linux
+            arch: amd64
+          - os: linux
+            arch: arm64
+          - os: darwin
+            arch: amd64
+          - os: darwin
+            arch: arm64
+          - os: windows
+            arch: amd64
+          - os: windows
+            arch: arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Build archive
+        env:
+          GOOS: ${{ matrix.os }}
+          GOARCH: ${{ matrix.arch }}
+          CGO_ENABLED: "0"
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          set -euo pipefail
+          name="airmx_${VERSION}_${GOOS}_${GOARCH}"
+          stage="$(mktemp -d)"
+          if [ "${GOOS}" = "windows" ]; then
+            bin="airmx.exe"
+            archive="${name}.zip"
+          else
+            bin="airmx"
+            archive="${name}.tar.gz"
+          fi
+          go build -trimpath -ldflags="-s -w -X main.assetVersion=${VERSION}" -o "${stage}/${bin}" .
+          if [ "${GOOS}" = "windows" ]; then
+            (cd "${stage}" && zip -q -X "${GITHUB_WORKSPACE}/${archive}" "${bin}")
+          else
+            tar -C "${stage}" -czf "${archive}" "${bin}"
+          fi
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: airmx-${{ matrix.os }}-${{ matrix.arch }}
+          path: airmx_${{ needs.version.outputs.version }}_${{ matrix.os }}_${{ matrix.arch }}.*
+          if-no-files-found: error
+          retention-days: 1
+
+  release:
+    needs: [version, docker, binaries]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - name: Download archives
+        uses: actions/download-artifact@v8
+        with:
+          pattern: airmx-*
+          merge-multiple: true
+          path: dist
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          set -euo pipefail
+          sha256sum airmx_* | tee SHA256SUMS
+
+      - name: GitHub Release
+        uses: softprops/action-gh-release@v3
+        with:
+          name: ${{ github.ref_name }}
+          prerelease: ${{ needs.version.outputs.prerelease == 'true' }}
+          make_latest: ${{ needs.version.outputs.prerelease == 'true' && 'false' || 'true' }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          body: |
+            Docker image: `ghcr.io/${{ github.repository }}:${{ needs.version.outputs.version }}`
+
+            Stable tags also publish `major.minor` and `major` image tags. Floating tags that are only a leading zero (`0`, `0.0`) are omitted. Pre-release tags (for example `-rc.1`, `-beta.2`, `-alpha`) publish the full version only and are marked as GitHub pre-releases.
+          files: |
+            dist/airmx_*
+            dist/SHA256SUMS

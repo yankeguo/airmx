@@ -1,0 +1,38 @@
+# Tests for pull requests and pushes to any branch except main.
+# Pushes to main run this same workflow via workflow_call from docker.yml,
+# and semver tags run it from release.yml, so publish jobs cannot start on
+# a failing test suite.
+
+name: test
+
+on:
+  workflow_call:
+  pull_request:
+  push:
+    branches-ignore:
+      - main
+
+permissions:
+  contents: read
+
+# Hardcoded prefix: github.workflow inside workflow_call is the caller name,
+# and sharing that group with the caller deadlocks the run.
+concurrency:
+  group: airmx-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: go.mod
+
+      - name: Test
+        run: go test ./...
