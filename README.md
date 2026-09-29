@@ -86,12 +86,38 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now airmx
 ```
 
+## Continuous integration
+
+| Event | What runs |
+| --- | --- |
+| Pull request, or a push to any branch other than `main` | `go test ./...` |
+| Push to `main` | the same tests, then `ghcr.io/yankeguo/airmx:latest` |
+| Push of a semver tag (`v1.2.3`, `v1.2.3-rc.1`, …) | the same tests, semver image tags, and a GitHub Release |
+
+Docker tags drop the leading `v`. There is no commit-SHA tag.
+
+| Git tag | Image tags |
+| --- | --- |
+| `v1.2.3` | `1.2.3`, `1.2`, `1` |
+| `v1.2.3-rc.1` | `1.2.3-rc.1` |
+| `v0.2.0` | `0.2.0`, `0.2` |
+| `v0.0.1` | `0.0.1` |
+
+Pre-release suffixes (`-rc`, `-beta`, `-alpha`, and any other semver
+pre-release) publish the full version only. Floating tags that would be only a
+leading zero (`0`, `0.0`) are not published. A pre-release tag is marked as a
+GitHub pre-release and is not made the repository's latest release.
+
+Each GitHub Release attaches `SHA256SUMS` and an archive per mainstream
+OS/arch: Linux, macOS, and Windows, on amd64 and arm64 (`.tar.gz`, or `.zip`
+on Windows). The binary inside is `airmx` (`airmx.exe` on Windows).
+
 ## Deploy with Docker
 
-Every push builds `ghcr.io/yankeguo/airmx` (`latest` on the default branch,
-plus per-branch and per-commit tags). The image contains **no default config
-file and no data directory** — you must mount your own config at
-`/etc/airmx/config.yaml`, and set `data_dir` to a path you also mount:
+Pushes to `main` publish `ghcr.io/yankeguo/airmx:latest`. Version tags are
+listed above. The image contains **no default config file and no data
+directory** — you must mount your own config at `/etc/airmx/config.yaml`, and
+set `data_dir` to a path you also mount:
 
 ```sh
 docker run -d --name airmx \
